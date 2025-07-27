@@ -7,8 +7,6 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
   const [editingName, setEditingName] = useState(false);
   const [jobName, setJobName] = useState(job.name);
   const [showSessions, setShowSessions] = useState(false);
-  const [manualStartTime, setManualStartTime] = useState("");
-  const [manualEndTime, setManualEndTime] = useState("");
 
   const today = new Date().toISOString().split("T")[0];
   const todaysTasks = job.tasksByDate?.[today] || [];
@@ -25,20 +23,6 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
   const totalTime =
     job.sessions.reduce((sum, s) => sum + s, 0) +
     (job.isClockedIn ? currentSessionTime : 0);
-
-  const handleAddManualSession = () => {
-    if (!manualStartTime || !manualEndTime) return;
-
-    const start = new Date(`${today}T${manualStartTime}`);
-    const end = new Date(`${today}T${manualEndTime}`);
-    const duration = end - start;
-    if (duration > 0) {
-      job.sessions.push(duration);
-    }
-
-    setManualStartTime("");
-    setManualEndTime("");
-  };
 
   const handleStartEditingTasks = () => {
     setTaskDrafts([...todaysTasks]);
@@ -178,29 +162,6 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
             Current Session: <span className="font-semibold">{formatTime(currentSessionTime)}</span>
           </p>
           <p className="font-bold text-gray-800">Total Tracked Today: {formatTime(totalTime)}</p>
-
-          <div className="bg-blue-50 p-3 rounded border border-blue-200 space-y-2">
-            <div className="flex flex-col sm:flex-row gap-2 items-center">
-              <input
-                type="time"
-                value={manualStartTime}
-                onChange={(e) => setManualStartTime(e.target.value)}
-                step="60"
-                className="border p-1 rounded text-sm"
-              />
-              <span className="text-sm">to</span>
-              <input
-                type="time"
-                value={manualEndTime}
-                onChange={(e) => setManualEndTime(e.target.value)}
-                step="60"
-                className="border p-1 rounded text-sm"
-              />
-            </div>
-            <button onClick={handleAddManualSession} className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 w-full">
-              ➕ Add Manual Session
-            </button>
-          </div>
 
           <button onClick={() => setShowSessions(!showSessions)} className="text-blue-600 underline text-xs">
             {showSessions ? "Hide Session Log" : "View Session Log"}

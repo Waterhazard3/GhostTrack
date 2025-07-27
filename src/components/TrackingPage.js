@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import JobCard from "./JobCard";
+import FixClockInMistake from "./FixClockInMistake";
 
 function TrackingPage() {
   const [tick, setTick] = useState(0);
@@ -89,13 +90,12 @@ function TrackingPage() {
   };
 
   useEffect(() => {
-  if (viewStatus === "active") return; // don't override active mode
-  const existingLog = getTodayLogFromHistory();
-  if (jobs.length > 0) setViewStatus("active");
-  else if (existingLog) setViewStatus("resume");
-  else setViewStatus("idle");
-}, [jobs, viewStatus]);
-
+    if (viewStatus === "active") return;
+    const existingLog = getTodayLogFromHistory();
+    if (jobs.length > 0) setViewStatus("active");
+    else if (existingLog) setViewStatus("resume");
+    else setViewStatus("idle");
+  }, [jobs, viewStatus]);
 
   const handleStartTracking = () => {
     const now = Date.now();
@@ -355,74 +355,49 @@ function TrackingPage() {
 
       {viewStatus === "active" && (
         <>
-          <div className="mb-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-green-50 border border-green-300 p-4 rounded-xl shadow-sm">
-              <div className="text-2xl font-bold text-black">
-                📅 {todayFormatted}{" "}
-                {dayStartTime && (
-                  <span className="ml-4 text-green-800 text-base font-semibold">
-                    🕐 Started:{" "}
-                    {new Date(dayStartTime).toLocaleTimeString([], {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={handleSaveToday}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  💾 Save Today’s Log
-                </button>
-                <button
-                  onClick={handleCancelToday}
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                >
-                  ❌ Exit Without Saving
-                </button>
-              </div>
+          <div className="mb-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-gray-800">📅 {todayFormatted}</h1>
+              <button
+                onClick={handleTakeBreak}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
+              >
+                🛑 Take a Break
+              </button>
+            </div>
+            <div className="text-sm text-gray-700">
+              Idle Time: {formatTime(idleTotal + (isIdle && idleStartTime ? Date.now() - idleStartTime : 0))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="New Job Name"
+                value={newJobName}
+                onChange={(e) => setNewJobName(e.target.value)}
+                className="border p-2 rounded w-full max-w-xs"
+              />
+              <button
+                onClick={handleAddJob}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                ➕ Add Job
+              </button>
+              <button
+                onClick={handleSaveToday}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
+                ✅ Save Today’s Work Hours
+              </button>
+              <button
+                onClick={handleCancelToday}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              >
+                ❌ Cancel Today
+              </button>
             </div>
           </div>
 
-          <div className="mb-6">
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg shadow-sm flex flex-col md:flex-row md:items-center md:justify-between">
-              <div className="text-base font-semibold text-gray-800">
-                {isIdle
-                  ? `⏸️ You are now idling • Total Idle Time: ${formatTime(
-                      idleTotal + (idleStartTime ? Date.now() - idleStartTime : 0)
-                    )}`
-                  : `⏱️ Actively working • Total Idle Time: ${formatTime(idleTotal)}`}
-              </div>
-              {!isIdle && (
-                <div className="mt-2 md:mt-0">
-                  <button
-                    onClick={handleTakeBreak}
-                    className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
-                  >
-                    ⏸️ Take a Break / Idle
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mb-6 flex flex-col sm:flex-row gap-2">
-            <input
-              type="text"
-              placeholder="Add a New Job"
-              value={newJobName}
-              onChange={(e) => setNewJobName(e.target.value)}
-              className="border border-gray-300 px-3 py-2 rounded flex-grow text-base"
-            />
-            <button
-              onClick={handleAddJob}
-              className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900 flex items-center gap-2"
-            >
-              ➕ <span>Create Job</span>
-            </button>
-          </div>
+          <FixClockInMistake jobs={jobs} setJobs={setJobs} />
 
           {jobs.map((job, idx) => (
             <JobCard
