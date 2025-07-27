@@ -7,6 +7,7 @@ function FixClockInMistake({
   setIdleTotal,
   setIsIdle,
   setIdleStartTime,
+  buttonClassName,
 }) {
   const [showFixUI, setShowFixUI] = useState(false);
   const [fromJob, setFromJob] = useState("");
@@ -22,7 +23,6 @@ function FixClockInMistake({
     correctionDateTime.setHours(Number(h), Number(m), 0, 0);
     const correctionTimestamp = correctionDateTime.getTime();
 
-    // If fixing from idle time (forgot to clock in)
     if (fromJob === "__IDLE__") {
       const now = Date.now();
       const mistakenIdle = now - correctionTimestamp;
@@ -32,7 +32,6 @@ function FixClockInMistake({
         localStorage.setItem("ghosttrackIdleTotal", newIdleTotal.toString());
       }
     } else {
-      // Handle normal job clock-out correction
       const fromIndex = jobs.findIndex((j) => j.name === fromJob);
       if (fromIndex === -1) return alert("Source job not found");
 
@@ -46,9 +45,7 @@ function FixClockInMistake({
       }
     }
 
-    // If fixing to idle (forgot to hit "Take a Break")
     if (toJob === "__IDLE__") {
-      // Clock out all jobs at correction point
       newJobs.forEach((job) => {
         if (job.isClockedIn && job.startTime < correctionTimestamp) {
           const duration = correctionTimestamp - job.startTime;
@@ -59,44 +56,39 @@ function FixClockInMistake({
         }
       });
 
-      // Start idle timer
       setIsIdle(true);
       setIdleStartTime(correctionTimestamp);
       localStorage.setItem("ghosttrackIsIdle", "true");
       localStorage.setItem("ghosttrackIdleStartTime", correctionTimestamp.toString());
 
       setJobs(newJobs);
-      setShowFixUI(false);
-      setFromJob("");
-      setToJob("");
-      setCorrectionTime("");
+      resetUI();
       return;
     }
 
-    // Proceed with normal job-to-job correction
     const toIndex = jobs.findIndex((j) => j.name === toJob);
     if (toIndex === -1) return alert("Target job not found");
 
-    // Ensure all other jobs are clocked out
     newJobs.forEach((job) => {
       if (job.isClockedIn) {
         const now = Date.now();
         const duration = now - job.startTime;
-        if (duration > 0) {
-          job.sessions.push(duration);
-        }
+        if (duration > 0) job.sessions.push(duration);
         job.startTime = null;
         job.isClockedIn = false;
         job.lastClockOut = now;
       }
     });
 
-    // Start new session for TO job
     const toJobRef = newJobs[toIndex];
     toJobRef.isClockedIn = true;
     toJobRef.startTime = correctionTimestamp;
 
     setJobs(newJobs);
+    resetUI();
+  };
+
+  const resetUI = () => {
     setShowFixUI(false);
     setFromJob("");
     setToJob("");
@@ -108,9 +100,9 @@ function FixClockInMistake({
       {!showFixUI ? (
         <button
           onClick={() => setShowFixUI(true)}
-          className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+          className={buttonClassName || "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm sm:text-base min-w-[140px]"}
         >
-          🛠 Fix Clock-In Mistake
+          🛠️ Fix Clock In Mistake
         </button>
       ) : (
         <div className="bg-yellow-50 p-4 border border-yellow-300 rounded space-y-2">
@@ -153,7 +145,7 @@ function FixClockInMistake({
               ✅ Confirm Fix
             </button>
             <button
-              onClick={() => setShowFixUI(false)}
+              onClick={resetUI}
               className="bg-gray-500 text-white px-4 py-1 rounded hover:bg-gray-600"
             >
               Cancel

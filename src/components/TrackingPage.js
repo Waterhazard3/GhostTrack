@@ -314,21 +314,23 @@ function TrackingPage() {
   });
 
   return (
-    <div className="p-8 font-sans">
+    <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-5xl mx-auto font-sans">
+      {/* Success Banner */}
       {showSaveSuccess && (
-        <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded mb-4 shadow-md flex items-center justify-between">
-          <span>✅ Log saved successfully!</span>
+        <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded mb-6 shadow-md flex items-center justify-between">
+          <span className="text-sm sm:text-base">✅ Log saved successfully!</span>
           <button
             onClick={() => setShowSaveSuccess(false)}
-            className="bg-green-600 text-white px-3 py-1 rounded ml-4 hover:bg-green-700"
+            className="bg-green-600 text-white px-3 py-1 rounded ml-4 text-sm sm:text-base hover:bg-green-700"
           >
             Confirmed
           </button>
         </div>
       )}
 
+      {/* IDLE STATE */}
       {viewStatus === "idle" && (
-        <div className="text-center space-y-6">
+        <div className="text-center space-y-6 mt-10">
           <h1 className="text-3xl font-bold">Today’s Work Log</h1>
           <div className="text-2xl font-bold text-gray-800">📅 {todayFormatted}</div>
           <button
@@ -340,8 +342,9 @@ function TrackingPage() {
         </div>
       )}
 
+      {/* RESUME STATE */}
       {viewStatus === "resume" && (
-        <div className="text-center space-y-6">
+        <div className="text-center space-y-6 mt-10">
           <h1 className="text-3xl font-bold">Today’s Work Log</h1>
           <div className="text-2xl font-bold text-gray-800">📅 {todayFormatted}</div>
           <button
@@ -353,72 +356,100 @@ function TrackingPage() {
         </div>
       )}
 
+      {/* ACTIVE STATE */}
       {viewStatus === "active" && (
-        <>
-          <div className="mb-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-gray-800">📅 {todayFormatted}</h1>
-              <button
-                onClick={handleTakeBreak}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
-              >
-                🛑 Take a Break
-              </button>
-            </div>
-            <div className="text-sm text-gray-700">
-              Idle Time: {formatTime(idleTotal + (isIdle && idleStartTime ? Date.now() - idleStartTime : 0))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="New Job Name"
-                value={newJobName}
-                onChange={(e) => setNewJobName(e.target.value)}
-                className="border p-2 rounded w-full max-w-xs"
-              />
-              <button
-                onClick={handleAddJob}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                ➕ Add Job
-              </button>
-              <button
-                onClick={handleSaveToday}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              >
-                ✅ Save Today’s Work Hours
-              </button>
-              <button
-                onClick={handleCancelToday}
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-              >
-                ❌ Cancel Today
-              </button>
+        <div className="space-y-8 mt-6">
+          {/* SECTION 1 — STATUS HEADER */}
+          <div className="bg-gray-100 border border-gray-300 rounded-lg p-5 shadow-md ring-1 ring-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">📅 {todayFormatted}</h1>
+                <p className="text-sm text-gray-600 italic">
+                  Log Started: {dayStartTime ? new Date(dayStartTime).toLocaleTimeString() : "—"}
+                </p>
+              </div>
+              <div className="mt-4 sm:mt-0 flex gap-2 flex-wrap">
+                <button
+                  onClick={handleSaveToday}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm sm:text-base"
+                >
+                  ✅ Save Today
+                </button>
+                <button
+                  onClick={handleCancelToday}
+                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm sm:text-base"
+                >
+                  ❌ Cancel Today
+                </button>
+              </div>
             </div>
           </div>
 
-          <FixClockInMistake
-  jobs={jobs}
-  setJobs={setJobs}
-  idleTotal={idleTotal}
-  setIdleTotal={setIdleTotal}
-  setIsIdle={setIsIdle}
-  setIdleStartTime={setIdleStartTime}
-/>
+          {/* SECTION 2 — IDLE/BREAK TRACKER */}
+          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-5 shadow-inner ring-1 ring-yellow-200">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-semibold text-yellow-800">🛋️ Break Tracker</h2>
+              <p className="text-sm text-yellow-700">
+                Idle Time: {formatTime(idleTotal + (isIdle && idleStartTime ? Date.now() - idleStartTime : 0))}
+              </p>
+            </div>
+            <button
+              onClick={handleTakeBreak}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded text-base font-semibold"
+            >
+              🛑 Take a Break
+            </button>
+          </div>
 
+          {/* SECTION 3 — JOB TOOLS + CLOCK FIX */}
+          <div className="bg-blue-50 border border-blue-300 rounded-lg p-5 shadow-sm ring-1 ring-blue-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1 sm:max-w-md flex gap-3">
+                <input
+                  type="text"
+                  placeholder="New Job Name"
+                  value={newJobName}
+                  onChange={(e) => setNewJobName(e.target.value)}
+                  className="flex-1 border border-gray-300 p-2 rounded text-sm sm:text-base"
+                />
+                <button
+                  onClick={handleAddJob}
+                  className="bg-blue-600 text-white px-4 py-2 rounded text-sm sm:text-base hover:bg-blue-700"
+                >
+                  ➕ Add Job
+                </button>
+              </div>
+              <div className="sm:w-auto">
+                <FixClockInMistake
+                  jobs={jobs}
+                  setJobs={setJobs}
+                  idleTotal={idleTotal}
+                  setIdleTotal={setIdleTotal}
+                  setIsIdle={setIsIdle}
+                  setIdleStartTime={setIdleStartTime}
+                  buttonClassName="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm sm:text-base"
+                />
+              </div>
+            </div>
+          </div>
 
-
-          {jobs.map((job, idx) => (
-            <JobCard
-              key={idx}
-              job={job}
-              onAddTask={(task) => handleAddTaskToJob(idx, task)}
-              onToggleClock={() => handleToggleClock(idx)}
-              onDeleteSession={(sIdx) => handleDeleteSession(idx, sIdx)}
-              onDeleteJob={() => handleDeleteJob(idx)}
-            />
-          ))}
-        </>
+          {/* JOB LIST */}
+          {jobs.length > 0 && (
+            <h2 className="text-lg font-semibold text-gray-700 border-b pb-1">📋 Jobs In Progress</h2>
+          )}
+          <div className="grid gap-4">
+            {jobs.map((job, idx) => (
+              <JobCard
+                key={idx}
+                job={job}
+                onAddTask={(task) => handleAddTaskToJob(idx, task)}
+                onToggleClock={() => handleToggleClock(idx)}
+                onDeleteSession={(sIdx) => handleDeleteSession(idx, sIdx)}
+                onDeleteJob={() => handleDeleteJob(idx)}
+              />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
