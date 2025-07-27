@@ -402,7 +402,10 @@ function TrackingPage() {
   setJobs={setJobs}
   idleTotal={idleTotal}
   setIdleTotal={setIdleTotal}
+  setIsIdle={setIsIdle}
+  setIdleStartTime={setIdleStartTime}
 />
+
 
 
           {jobs.map((job, idx) => (

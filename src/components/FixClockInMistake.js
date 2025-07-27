@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 
-function FixClockInMistake({ jobs, setJobs, idleTotal, setIdleTotal }) {
-
+function FixClockInMistake({
+  jobs,
+  setJobs,
+  idleTotal,
+  setIdleTotal,
+  setIsIdle,
+  setIdleStartTime,
+}) {
   const [showFixUI, setShowFixUI] = useState(false);
   const [fromJob, setFromJob] = useState("");
   const [toJob, setToJob] = useState("");
@@ -10,27 +16,23 @@ function FixClockInMistake({ jobs, setJobs, idleTotal, setIdleTotal }) {
   const handleConfirmFix = () => {
     if (!fromJob || !toJob || !correctionTime) return alert("Fill out all fields");
 
-    const toIndex = jobs.findIndex((j) => j.name === toJob);
-    if (toIndex === -1) return alert("Target job not found");
-
     const newJobs = [...jobs];
     const correctionDateTime = new Date();
     const [h, m] = correctionTime.split(":");
     correctionDateTime.setHours(Number(h), Number(m), 0, 0);
     const correctionTimestamp = correctionDateTime.getTime();
 
-    // Handle fix from idle time
+    // If fixing from idle time (forgot to clock in)
     if (fromJob === "__IDLE__") {
-  const now = Date.now();
-  const mistakenIdle = now - correctionTimestamp;
-  if (mistakenIdle > 0) {
-    const newIdleTotal = Math.max(0, idleTotal - mistakenIdle);
-    setIdleTotal(newIdleTotal);
-    localStorage.setItem("ghosttrackIdleTotal", newIdleTotal.toString());
-  }
-}
- else {
-      // Standard job-to-job fix
+      const now = Date.now();
+      const mistakenIdle = now - correctionTimestamp;
+      if (mistakenIdle > 0) {
+        const newIdleTotal = Math.max(0, idleTotal - mistakenIdle);
+        setIdleTotal(newIdleTotal);
+        localStorage.setItem("ghosttrackIdleTotal", newIdleTotal.toString());
+      }
+    } else {
+      // Handle normal job clock-out correction
       const fromIndex = jobs.findIndex((j) => j.name === fromJob);
       if (fromIndex === -1) return alert("Source job not found");
 
@@ -44,7 +46,38 @@ function FixClockInMistake({ jobs, setJobs, idleTotal, setIdleTotal }) {
       }
     }
 
-    // Force all jobs to be clocked out before resuming
+    // If fixing to idle (forgot to hit "Take a Break")
+    if (toJob === "__IDLE__") {
+      // Clock out all jobs at correction point
+      newJobs.forEach((job) => {
+        if (job.isClockedIn && job.startTime < correctionTimestamp) {
+          const duration = correctionTimestamp - job.startTime;
+          job.sessions.push(duration);
+          job.startTime = null;
+          job.isClockedIn = false;
+          job.lastClockOut = correctionTimestamp;
+        }
+      });
+
+      // Start idle timer
+      setIsIdle(true);
+      setIdleStartTime(correctionTimestamp);
+      localStorage.setItem("ghosttrackIsIdle", "true");
+      localStorage.setItem("ghosttrackIdleStartTime", correctionTimestamp.toString());
+
+      setJobs(newJobs);
+      setShowFixUI(false);
+      setFromJob("");
+      setToJob("");
+      setCorrectionTime("");
+      return;
+    }
+
+    // Proceed with normal job-to-job correction
+    const toIndex = jobs.findIndex((j) => j.name === toJob);
+    if (toIndex === -1) return alert("Target job not found");
+
+    // Ensure all other jobs are clocked out
     newJobs.forEach((job) => {
       if (job.isClockedIn) {
         const now = Date.now();
@@ -58,7 +91,7 @@ function FixClockInMistake({ jobs, setJobs, idleTotal, setIdleTotal }) {
       }
     });
 
-    // Start new session on TO job at corrected time
+    // Start new session for TO job
     const toJobRef = newJobs[toIndex];
     toJobRef.isClockedIn = true;
     toJobRef.startTime = correctionTimestamp;
@@ -106,6 +139,7 @@ function FixClockInMistake({ jobs, setJobs, idleTotal, setIdleTotal }) {
               className="border p-2 rounded"
             >
               <option value="">Meant to Clock Into...</option>
+              <option value="__IDLE__">Idle Time / Break</option>
               {jobs.map((j, idx) => (
                 <option key={idx} value={j.name}>{j.name}</option>
               ))}
