@@ -7,41 +7,54 @@ function FixClockInMistake({ jobs, setJobs }) {
   const [correctionTime, setCorrectionTime] = useState("");
 
   const handleConfirmFix = () => {
-    if (!fromJob || !toJob || !correctionTime) return alert("Fill out all fields");
+  if (!fromJob || !toJob || !correctionTime) return alert("Fill out all fields");
 
-    const fromIndex = jobs.findIndex((j) => j.name === fromJob);
-    const toIndex = jobs.findIndex((j) => j.name === toJob);
-    if (fromIndex === -1 || toIndex === -1) return alert("Job not found");
+  const fromIndex = jobs.findIndex((j) => j.name === fromJob);
+  const toIndex = jobs.findIndex((j) => j.name === toJob);
+  if (fromIndex === -1 || toIndex === -1) return alert("Job not found");
 
-    const newJobs = [...jobs];
-    const now = Date.now();
-    const correctionDateTime = new Date();
-    const [h, m] = correctionTime.split(":");
-    correctionDateTime.setHours(Number(h), Number(m), 0, 0);
-    const correctionTimestamp = correctionDateTime.getTime();
+  const newJobs = [...jobs];
+  const correctionDateTime = new Date();
+  const [h, m] = correctionTime.split(":");
+  correctionDateTime.setHours(Number(h), Number(m), 0, 0);
+  const correctionTimestamp = correctionDateTime.getTime();
 
-    // Cut off the last session from the FROM job at the correction time
-    const fromJobRef = newJobs[fromIndex];
-    if (fromJobRef.isClockedIn && fromJobRef.startTime < correctionTimestamp) {
-      const correctedDuration = correctionTimestamp - fromJobRef.startTime;
-      fromJobRef.sessions.push(correctedDuration);
-      fromJobRef.startTime = null;
-      fromJobRef.isClockedIn = false;
+  // End session on FROM job at correction time
+  const fromJobRef = newJobs[fromIndex];
+  if (fromJobRef.isClockedIn && fromJobRef.startTime < correctionTimestamp) {
+    const correctedDuration = correctionTimestamp - fromJobRef.startTime;
+    fromJobRef.sessions.push(correctedDuration);
+    fromJobRef.startTime = null;
+    fromJobRef.isClockedIn = false;
+    fromJobRef.lastClockOut = correctionTimestamp;
+  }
+
+  // Force all jobs to be clocked out to enforce single active job rule
+  newJobs.forEach((job) => {
+    if (job.isClockedIn) {
+      const now = Date.now();
+      const duration = now - job.startTime;
+      if (duration > 0) {
+        job.sessions.push(duration);
+      }
+      job.startTime = null;
+      job.isClockedIn = false;
+      job.lastClockOut = now;
     }
+  });
 
-    // Add a new session to the TO job beginning at the correction time
-    const toJobRef = newJobs[toIndex];
-    if (!toJobRef.isClockedIn) {
-      toJobRef.isClockedIn = true;
-      toJobRef.startTime = correctionTimestamp;
-    }
+  // Start new session on TO job at correction time
+  const toJobRef = newJobs[toIndex];
+  toJobRef.isClockedIn = true;
+  toJobRef.startTime = correctionTimestamp;
 
-    setJobs(newJobs);
-    setShowFixUI(false);
-    setFromJob("");
-    setToJob("");
-    setCorrectionTime("");
-  };
+  setJobs(newJobs);
+  setShowFixUI(false);
+  setFromJob("");
+  setToJob("");
+  setCorrectionTime("");
+};
+
 
   return (
     <div className="mb-4">
