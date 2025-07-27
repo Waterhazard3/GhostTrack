@@ -102,8 +102,12 @@ const WorkHistoryPage = () => {
   };
 
   const handleSaveEdits = () => {
-    localStorage.setItem("ghosttrackLogs", JSON.stringify(logs));
-    alert("✅ Changes saved.");
+    document.activeElement?.blur();
+    setLogs((currentLogs) => {
+      localStorage.setItem("ghosttrackLogs", JSON.stringify(currentLogs));
+      return currentLogs;
+    });
+    console.log("✅ Changes saved.");
     setEditMode({});
   };
 
