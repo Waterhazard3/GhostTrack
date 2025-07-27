@@ -397,7 +397,13 @@ function TrackingPage() {
             </div>
           </div>
 
-          <FixClockInMistake jobs={jobs} setJobs={setJobs} />
+          <FixClockInMistake
+  jobs={jobs}
+  setJobs={setJobs}
+  idleTotal={idleTotal}
+  setIdleTotal={setIdleTotal}
+/>
+
 
           {jobs.map((job, idx) => (
             <JobCard
