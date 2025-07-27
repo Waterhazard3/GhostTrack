@@ -81,6 +81,7 @@ const WorkHistoryPage = () => {
   };
 
   const handleEditChange = (logIdx, jobIdx, field, value) => {
+    console.log("✏️ Edited field:", { logIdx, jobIdx, field, value });
     const updatedLogs = [...logs];
     if (field === "name") {
       updatedLogs[logIdx].jobs[jobIdx].name = value;
@@ -97,7 +98,7 @@ const WorkHistoryPage = () => {
   };
 
   const parseTimeInput = (str) => {
-    const [h, m, s] = str.split(":").map((n) => parseInt(n, 10));
+    const [h, m, s] = str.split(":" ).map((n) => parseInt(n, 10));
     return ((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) * 1000;
   };
 
@@ -202,8 +203,8 @@ const WorkHistoryPage = () => {
                           {editMode[dateIdx] ? (
                             <input
                               className="text-xl font-bold text-gray-900 border px-2 py-1 rounded"
-                              value={job.name}
-                              onChange={(e) =>
+                              defaultValue={job.name}
+                              onBlur={(e) =>
                                 handleEditChange(dateIdx, jobIdx, "name", e.target.value)
                               }
                             />
@@ -267,9 +268,7 @@ const WorkHistoryPage = () => {
                           onClick={() => toggleJobSessions(dateIdx, jobIdx)}
                           className="text-blue-600 text-xs underline mt-1 cursor-pointer"
                         >
-                          {expandedJobs[jobKey]
-                            ? "Hide Sessions"
-                            : "View Sessions"}
+                          {expandedJobs[jobKey] ? "Hide Sessions" : "View Sessions"}
                         </div>
 
                         {expandedJobs[jobKey] && (
