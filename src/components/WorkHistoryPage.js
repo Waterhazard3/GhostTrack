@@ -105,9 +105,10 @@ const WorkHistoryPage = () => {
   const handleSaveEdits = () => {
     document.activeElement?.blur();
     setLogs((currentLogs) => {
-      localStorage.setItem("ghosttrackLogs", JSON.stringify(currentLogs));
-      console.log("✅ Saving logs to localStorage:", currentLogs);
-      return currentLogs;
+      const clonedLogs = JSON.parse(JSON.stringify(currentLogs));
+      localStorage.setItem("ghosttrackLogs", JSON.stringify(clonedLogs));
+      console.log("✅ Saving logs to localStorage:", clonedLogs);
+      return clonedLogs;
     });
     setEditMode({});
   };
