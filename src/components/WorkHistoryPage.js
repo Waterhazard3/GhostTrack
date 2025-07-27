@@ -60,7 +60,8 @@ const WorkHistoryPage = () => {
     const confirmDelete = window.confirm("Delete this log entry?");
     if (!confirmDelete) return;
     const updatedLogs = [...logs];
-    updatedLogs.splice(index, 1);
+    const actualIndex = logs.length - 1 - index;
+    updatedLogs.splice(actualIndex, 1);
     setLogs(updatedLogs);
     localStorage.setItem("ghosttrackLogs", JSON.stringify(updatedLogs));
   };
@@ -83,16 +84,18 @@ const WorkHistoryPage = () => {
   const handleEditChange = (logIdx, jobIdx, field, value) => {
     console.log("✏️ Edited field:", { logIdx, jobIdx, field, value });
     const updatedLogs = [...logs];
+    const actualIndex = logs.length - 1 - logIdx;
+
     if (field === "name") {
-      updatedLogs[logIdx].jobs[jobIdx].name = value;
+      updatedLogs[actualIndex].jobs[jobIdx].name = value;
     } else if (field === "note") {
-      updatedLogs[logIdx].jobs[jobIdx].notes = value.split("\n");
+      updatedLogs[actualIndex].jobs[jobIdx].notes = value.split("\n");
     } else if (field === "jobTime") {
       const ms = parseTimeInput(value);
-      updatedLogs[logIdx].jobs[jobIdx].sessions = [ms];
+      updatedLogs[actualIndex].jobs[jobIdx].sessions = [ms];
     } else if (field === "idle") {
       const ms = parseTimeInput(value);
-      updatedLogs[logIdx].idleTotal = ms;
+      updatedLogs[actualIndex].idleTotal = ms;
     }
     setLogs(updatedLogs);
   };
