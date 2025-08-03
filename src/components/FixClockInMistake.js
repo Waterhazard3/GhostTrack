@@ -100,43 +100,58 @@ function FixClockInMistake({
       {!showFixUI ? (
         <button
           onClick={() => setShowFixUI(true)}
-          className={buttonClassName || "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm sm:text-base min-w-[140px]"}
+          className={
+            buttonClassName ||
+            "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm sm:text-base min-w-[140px]"
+          }
         >
-          🛠️ Fix Clock In Mistake
+          ⚠️ Fix a Clock-In Mistake
         </button>
       ) : (
-        <div className="bg-yellow-50 p-4 border border-yellow-300 rounded space-y-2">
+        <div className="bg-yellow-50 p-4 border border-yellow-300 rounded space-y-3">
           <h3 className="font-bold text-yellow-800">Fix Clock-In Mistake</h3>
-          <div className="flex flex-col md:flex-row gap-2">
-            <select
-              value={fromJob}
-              onChange={(e) => setFromJob(e.target.value)}
-              className="border p-2 rounded"
-            >
-              <option value="">Forgot to Clock Out of...</option>
-              <option value="__IDLE__">Idle Time / Break</option>
-              {jobs.map((j, idx) => (
-                <option key={idx} value={j.name}>{j.name}</option>
-              ))}
-            </select>
-            <input
-              type="time"
-              value={correctionTime}
-              onChange={(e) => setCorrectionTime(e.target.value)}
-              className="border p-2 rounded"
-            />
-            <select
-              value={toJob}
-              onChange={(e) => setToJob(e.target.value)}
-              className="border p-2 rounded"
-            >
-              <option value="">Meant to Clock Into...</option>
-              <option value="__IDLE__">Idle Time / Break</option>
-              {jobs.map((j, idx) => (
-                <option key={idx} value={j.name}>{j.name}</option>
-              ))}
-            </select>
-          </div>
+
+          {/* MadLibs-style sentence */}
+<div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 text-base text-gray-800">
+  <span className="font-bold">I forgot to clock out of:</span>
+  <select
+    value={fromJob}
+    onChange={(e) => setFromJob(e.target.value)}
+    className="border p-2 rounded"
+  >
+    <option value="">Select job</option>
+    <option value="__IDLE__">Break / Idle Time</option>
+    {jobs.map((j, idx) => (
+      <option key={idx} value={j.name}>
+        {j.name}
+      </option>
+    ))}
+  </select>
+
+  <span className="font-bold">at around:</span>
+  <input
+    type="time"
+    value={correctionTime}
+    onChange={(e) => setCorrectionTime(e.target.value)}
+    className="border p-2 rounded"
+  />
+
+  <span className="font-bold">when I meant to be clocked in to:</span>
+  <select
+    value={toJob}
+    onChange={(e) => setToJob(e.target.value)}
+    className="border p-2 rounded"
+  >
+    <option value="">Select job</option>
+    <option value="__IDLE__">Idle Time / Break</option>
+    {jobs.map((j, idx) => (
+      <option key={idx} value={j.name}>
+        {j.name}
+      </option>
+    ))}
+  </select>
+</div>
+
           <div className="flex gap-2 mt-2">
             <button
               onClick={handleConfirmFix}

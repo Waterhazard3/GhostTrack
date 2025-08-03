@@ -316,11 +316,11 @@ function TrackingPage() {
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-5xl mx-auto font-sans bg-gray-100 min-h-screen">
       {showSaveSuccess && (
-        <div className="bg-green-100 border-2 border-green-400 text-green-800 px-4 py-3 rounded mb-6 shadow-md flex items-center justify-between">
+        <div className="bg-green-100 border-2 border-green-700 text-green-800 px-4 py-3 rounded mb-6 shadow-md flex items-center justify-between">
           <span className="text-base sm:text-lg font-semibold">✅ Log saved successfully!</span>
           <button
             onClick={() => setShowSaveSuccess(false)}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold"
+            className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 font-semibold"
           >
             Confirmed
           </button>
@@ -333,7 +333,7 @@ function TrackingPage() {
           <div className="text-2xl font-bold text-gray-800">📅 {todayFormatted}</div>
           <button
             onClick={handleStartTracking}
-            className="text-white bg-green-600 px-8 py-4 rounded-xl hover:bg-green-700 text-xl font-bold shadow-md"
+            className="text-white bg-blue-700 px-8 py-4 rounded-xl hover:bg-blue-800 text-xl font-bold shadow-md"
           >
             + Start Today’s Log
           </button>
@@ -341,12 +341,12 @@ function TrackingPage() {
       )}
 
       {viewStatus === "resume" && (
-        <div className="text-center space-y-6 mt-10 bg-white border-2 border-blue-300 shadow-lg rounded-2xl p-6">
+        <div className="text-center space-y-6 mt-10 bg-white border-2 border-gray-300 shadow-lg rounded-2xl p-6">
           <h1 className="text-4xl font-extrabold">Today’s Work Log</h1>
           <div className="text-2xl font-bold text-gray-800">📅 {todayFormatted}</div>
           <button
             onClick={handleResumeToday}
-            className="text-white bg-blue-600 px-8 py-4 rounded-xl hover:bg-blue-700 text-xl font-bold shadow-md"
+            className="text-white bg-slate-600 px-8 py-4 rounded-xl hover:bg-slate-700 text-xl font-bold shadow-md"
           >
             🔄 Resume Today’s Log
           </button>
@@ -355,83 +355,131 @@ function TrackingPage() {
 
       {viewStatus === "active" && (
         <div className="space-y-8 mt-6">
-          <div className="bg-white border-2 border-gray-400 rounded-2xl p-6 shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">📅 {todayFormatted}</h1>
-                <p className="text-sm text-gray-600 italic">
-                  Log Started: {dayStartTime ? new Date(dayStartTime).toLocaleTimeString() : "—"}
-                </p>
-              </div>
-              <div className="mt-4 sm:mt-0 flex gap-3 flex-wrap">
-                <button
-                  onClick={handleSaveToday}
-                  className="bg-green-600 text-white px-5 py-3 rounded-lg hover:bg-green-700 text-base font-semibold shadow-md"
-                >
-                  ✅ Save Today
-                </button>
-                <button
-                  onClick={handleCancelToday}
-                  className="bg-red-600 text-white px-5 py-3 rounded-lg hover:bg-red-700 text-base font-semibold shadow-md"
-                >
-                  ❌ Cancel Today
-                </button>
-              </div>
-            </div>
-          </div>
+         {/* PAGE TITLE (no card/box) */}
+<div className="flex flex-row items-start justify-between w-full gap-4 flex-nowrap pb-4 mb-6 border-b-2 border-gray-400">
+  {/* Left-aligned Page Title */}
+  <div className="flex-1 min-w-[160px]">
+    <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight">
+      {new Date().toLocaleDateString("en-US", { weekday: "long" })}
+    </h1>
+    <p className="text-xl sm:text-2xl font-semibold text-gray-700">
+      {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+    </p>
+    <p className="text-sm sm:text-base text-gray-600 italic mt-1">
+  Log Started:{" "}
+  {dayStartTime
+    ? new Date(dayStartTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—"}
+</p>
+  </div>
 
-          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-2xl p-6 shadow-inner">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-xl font-bold text-yellow-800">🛋️ Break Tracker</h2>
-              <p className="text-lg text-yellow-700 font-semibold">
-                Idle Time: {formatTime(idleTotal + (isIdle && idleStartTime ? Date.now() - idleStartTime : 0))}
-              </p>
-            </div>
-            <button
-              onClick={handleTakeBreak}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-lg text-lg font-bold shadow-md"
-            >
-              🛑 Take a Break
-            </button>
-          </div>
+  {/* Right-aligned stacked buttons */}
+  <div className="flex flex-col gap-2 items-end w-[140px] flex-shrink-0 mt-1">
+    {/* Save Today - Primary */}
+<button
+  onClick={handleSaveToday}
+  className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg text-sm sm:text-base font-semibold shadow-md w-full flex items-center justify-center gap-2"
+>
+  💾 Save Today
+</button>
 
-          <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 shadow-md">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex-1 sm:max-w-md flex gap-3">
-                <input
-                  type="text"
-                  placeholder="New Job Name"
-                  value={newJobName}
-                  onChange={(e) => setNewJobName(e.target.value)}
-                  className="flex-1 border-2 border-gray-300 p-3 rounded-lg text-lg focus:ring-2 focus:ring-blue-300"
-                />
-                <button
-                  onClick={handleAddJob}
-                  className="bg-blue-600 text-white px-5 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 shadow-md"
-                >
-                  ➕ Add Job
-                </button>
-              </div>
-              <div className="sm:w-auto">
-                <FixClockInMistake
-                  jobs={jobs}
-                  setJobs={setJobs}
-                  idleTotal={idleTotal}
-                  setIdleTotal={setIdleTotal}
-                  setIsIdle={setIsIdle}
-                  setIdleStartTime={setIdleStartTime}
-                  buttonClassName="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg text-lg font-semibold shadow-md"
-                />
-              </div>
-            </div>
-          </div>
+{/* Cancel Today - Secondary */}
+<button
+  onClick={handleCancelToday}
+  className="border-2 border-red-600 text-red-700 px-4 py-2 rounded-lg hover:bg-red-50 text-sm sm:text-base font-semibold w-full transition-colors flex items-center justify-center gap-2"
+>
+  🗑️ Cancel Today
+</button>
+  </div>
+</div>
 
-          {jobs.length > 0 && (
-            <h2 className="text-2xl font-bold text-gray-800 border-b-2 border-gray-300 pb-2">
-              📋 Jobs In Progress
-            </h2>
-          )}
-          <div className="grid gap-6">
+          {/* Break Tracker */}
+          <div className="transform scale-90 origin-top w-full">
+  <div
+    className={`rounded-xl shadow-md border-2 transition-colors duration-300 w-full flex flex-col justify-between ${
+      isIdle
+        ? "border-green-500 bg-green-50 min-h-[160px]"
+        : "border-gray-300 bg-white min-h-[110px]"
+    }`}
+  >
+    {/* Top title */}
+    <h2 className="text-2xl font-extrabold text-gray-800 px-5 pt-5 text-center w-full">
+      Total Idle Today:{" "}
+      <span
+        className={`${
+          isIdle ? "text-green-700" : "text-gray-800"
+        }`}
+      >
+        {formatTime(idleTotal + (isIdle && idleStartTime ? Date.now() - idleStartTime : 0))}
+      </span>
+    </h2>
+
+    {/* Middle message */}
+    {isIdle && (
+      <div className="flex items-center justify-center px-5 py-2">
+        <p className="text-green-700 text-lg italic font-medium text-center whitespace-nowrap">
+          ℹ️ (Clock in to a job to stop idling)
+        </p>
+      </div>
+    )}
+
+    {/* Bottom bar */}
+    {!isIdle ? (
+      <button
+        onClick={handleTakeBreak}
+        className="bg-red-500 hover:bg-red-600 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
+        style={{ height: "48px" }}
+      >
+        🛑 Start Break / Idle
+      </button>
+    ) : (
+      <div
+        className="bg-green-600 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
+        style={{ height: "48px" }}
+      >
+        🕒 Break / Idle - Active
+      </div>
+    )}
+  </div>
+</div>
+
+          <h2 className="text-2xl font-bold text-gray-800 pb-2 border-b-2 border-gray-300">
+            📋 Jobs In Progress:
+          </h2>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
+  {/* Add Job */}
+  <div className="flex-1 sm:max-w-md flex gap-3">
+    <input
+      type="text"
+      placeholder="New Job Name"
+      value={newJobName}
+      onChange={(e) => setNewJobName(e.target.value)}
+      className="flex-1 border border-gray-300 p-2 rounded text-sm sm:text-base"
+    />
+    <button
+      onClick={handleAddJob}
+      className="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800 text-sm sm:text-base font-semibold shadow-md"
+    >
+      + Add Job
+    </button>
+  </div>
+
+  {/* Fix Clock-In Mistake */}
+  <div className="sm:w-auto mt-2 sm:mt-0">
+    <FixClockInMistake
+  jobs={jobs}
+  setJobs={setJobs}
+  idleTotal={idleTotal}
+  setIdleTotal={setIdleTotal}
+  setIsIdle={setIsIdle}
+  setIdleStartTime={setIdleStartTime}
+  buttonClassName="border-2 border-gray-500 text-gray-700 px-5 py-3 rounded-lg text-base sm:text-lg font-semibold hover:bg-gray-100 shadow-sm w-full"
+/>
+  </div>
+</div>
+
+          <div className="grid gap-6 mt-4">
             {jobs.map((job, idx) => (
               <JobCard
                 key={idx}
