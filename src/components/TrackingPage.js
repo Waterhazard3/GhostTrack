@@ -418,7 +418,7 @@ function TrackingPage() {
     {isIdle && (
       <div className="flex items-center justify-center px-5 py-2">
         <p className="text-green-700 text-lg italic font-medium text-center whitespace-nowrap">
-          ℹ️ (Clock in to a job to stop idling)
+          ℹ️ (Clock-In To A Job To Stop Idling)
         </p>
       </div>
     )}
@@ -427,7 +427,7 @@ function TrackingPage() {
     {!isIdle ? (
       <button
         onClick={handleTakeBreak}
-        className="bg-red-500 hover:bg-red-600 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
+        className="bg-red-600 hover:bg-red-700 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
         style={{ height: "48px" }}
       >
         🛑 Start Break / Idle

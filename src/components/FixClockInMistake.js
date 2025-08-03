@@ -108,7 +108,7 @@ function FixClockInMistake({
           ⚠️ Fix a Clock-In Mistake
         </button>
       ) : (
-        <div className="bg-yellow-50 p-4 border border-yellow-300 rounded space-y-3">
+        <div className="bg-yellow-50 p-4 border border-yellow-500 rounded space-y-3">
           <h3 className="font-bold text-yellow-800">Fix Clock-In Mistake</h3>
 
           {/* MadLibs-style sentence */}
