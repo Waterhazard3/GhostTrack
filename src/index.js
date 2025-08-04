@@ -7,7 +7,7 @@ import { migrateGhostTrackStorage } from './utils/migrateSchema';
 // ✅ Run migration before rendering app
 console.log("Starting GhostTrack...");
 migrateGhostTrackStorage();
-console.log("Migration completed, launching app...");
+console.log("✅ GhostTrack migration completed successfully.");
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import JobCard from "./JobCard";
 import FixClockInMistake from "./FixClockInMistake";
+import { validateJob, validateLog } from "../utils/validateSchema";
 
 function TrackingPage() {
   const [tick, setTick] = useState(0);
@@ -61,7 +62,8 @@ function TrackingPage() {
   }, [currentDate]);
 
   useEffect(() => {
-    localStorage.setItem("ghosttrackLiveJobs", JSON.stringify(jobs));
+  const validatedJobs = jobs.map(validateJob);
+  localStorage.setItem("ghosttrackLiveJobs", JSON.stringify(validatedJobs));
 
     const someoneClockedIn = jobs.some((j) => j.isClockedIn);
     if (!someoneClockedIn && !isIdle && jobs.length > 0) {
@@ -261,7 +263,7 @@ function TrackingPage() {
       return;
     }
 
-    const previousLogs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+   const previousLogs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]").map(validateLog);
     const existingIndex = previousLogs.findIndex((log) => (log.logId || log.date) === today);
 
     if (existingIndex !== -1) {
@@ -270,7 +272,8 @@ function TrackingPage() {
       previousLogs.push(summary);
     }
 
-    localStorage.setItem("ghosttrackLogs", JSON.stringify(previousLogs));
+    const validatedLogs = previousLogs.map(validateLog);
+localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
     localStorage.removeItem("ghosttrackLiveJobs");
     localStorage.removeItem("ghosttrackDayStartTime");
     localStorage.removeItem("ghosttrackIdleStartTime");
