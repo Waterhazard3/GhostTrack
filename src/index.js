@@ -1,3 +1,5 @@
+import { migrateGhostTrackStorage } from './utils/migrateSchema';
+migrateGhostTrackStorage();
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css"; // ✅ This pulls in Tailwind's styles
