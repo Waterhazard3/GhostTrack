@@ -21,8 +21,10 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
 
   const currentSessionTime = job.isClockedIn ? Date.now() - job.startTime : 0;
   const totalTime =
-    job.sessions.reduce((sum, s) => sum + s, 0) +
-    (job.isClockedIn ? currentSessionTime : 0);
+    job.sessions.reduce(
+      (sum, session) => sum + (typeof session === "number" ? session : (session.duration || 0)),
+      0
+    ) + (job.isClockedIn ? currentSessionTime : 0);
 
   const handleStartEditingTasks = () => {
     setTaskDrafts([...todaysTasks]);
@@ -101,42 +103,42 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
         ) : (
           <>
             <div className="flex flex-col items-start">
-  <span className="text-xs font-bold text-gray-700 uppercase tracking-wide bg-gray-200 px-2 py-0.5 rounded">
-    Job Name:
-  </span>
-  <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 bg-gray-300 px-3 py-1 rounded-md shadow-sm mt-1">
-    {job.name}
-  </h2>
-</div>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wide bg-gray-200 px-2 py-0.5 rounded">
+                Job Name:
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 bg-gray-300 px-3 py-1 rounded-md shadow-sm mt-1">
+                {job.name}
+              </h2>
+            </div>
             <div className="flex flex-col space-y-1 items-end self-start">
-  <button
-    onClick={() => setEditingName(true)}
-    className="border border-blue-400 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-50 text-xs w-20 text-center whitespace-nowrap"
-  >
-    Edit
-  </button>
-  <button
-    onClick={confirmDeleteJob}
-    className="border border-red-400 text-red-600 px-2 py-0.5 rounded hover:bg-red-50 text-xs w-20 text-center whitespace-nowrap"
-  >
-    Delete
-  </button>
-</div> 
+              <button
+                onClick={() => setEditingName(true)}
+                className="border border-blue-400 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-50 text-xs w-20 text-center whitespace-nowrap"
+              >
+                Edit
+              </button>
+              <button
+                onClick={confirmDeleteJob}
+                className="border border-red-400 text-red-600 px-2 py-0.5 rounded hover:bg-red-50 text-xs w-20 text-center whitespace-nowrap"
+              >
+                Delete
+              </button>
+            </div>
           </>
         )}
       </div>
 
       {/* 2️⃣ CLOCK BUTTON */}
       <button
-  onClick={onToggleClock}
-  className={`w-full text-white font-bold text-2xl py-6 transition-all duration-300 shadow-md hover:shadow-lg border-y-2 ${
-    job.isClockedIn
-      ? "bg-green-600 hover:bg-green-700 border-green-700"
-      : "bg-red-600 hover:bg-red-700 border-gray-800"
-  }`}
->
-  {job.isClockedIn ? "Clock Out" : "Clock In"}
-</button>
+        onClick={onToggleClock}
+        className={`w-full text-white font-bold text-2xl py-6 transition-all duration-300 shadow-md hover:shadow-lg border-y-2 ${
+          job.isClockedIn
+            ? "bg-green-600 hover:bg-green-700 border-green-700"
+            : "bg-red-600 hover:bg-red-700 border-gray-800"
+        }`}
+      >
+        {job.isClockedIn ? "Clock Out" : "Clock In"}
+      </button>
 
       {/* 3️⃣ TASKS SECTION */}
       <div className="p-4 border-b bg-gray-50">
@@ -144,11 +146,11 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
           <h3 className="text-lg font-semibold text-gray-700">Tasks & Progress</h3>
           {!editingTasks ? (
             <button
-  onClick={handleStartEditingTasks}
-  className="border border-blue-400 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-50 text-xs w-20 text-center whitespace-nowrap"
->
-  Edit
-</button>
+              onClick={handleStartEditingTasks}
+              className="border border-blue-400 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-50 text-xs w-20 text-center whitespace-nowrap"
+            >
+              Edit
+            </button>
           ) : (
             <div className="space-x-2 text-xs">
               <button
@@ -194,11 +196,11 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
               className="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-300"
             />
             <button
-  onClick={handleAddTask}
-  className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-900 text-sm whitespace-nowrap min-w-[70px] text-center"
->
-  + Add
-</button>
+              onClick={handleAddTask}
+              className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-900 text-sm whitespace-nowrap min-w-[70px] text-center"
+            >
+              + Add
+            </button>
           </div>
         )}
       </div>
@@ -225,9 +227,10 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
 
         {showSessions && (
           <ul className="text-xs list-disc pl-5 mt-2 text-gray-700 space-y-1 bg-gray-100 p-2 rounded-lg">
-            {job.sessions.map((s, idx) => (
+            {job.sessions.map((session, idx) => (
               <li key={idx}>
-                Session {idx + 1}: {formatTime(s)}
+                Session {idx + 1}:{" "}
+                {formatTime(typeof session === "number" ? session : (session.duration || 0))}
                 <button
                   onClick={() => onDeleteSession(idx)}
                   className="ml-2 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"

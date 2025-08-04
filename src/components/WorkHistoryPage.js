@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Clock3, Trash2, Pencil, Save } from "lucide-react";
 
 const formatTime = (ms) => {
+  if (!ms || isNaN(ms)) return "00:00:00";
   const totalSeconds = Math.floor(ms / 1000);
   const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
   const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
@@ -39,21 +40,20 @@ const WorkHistoryPage = () => {
   };
 
   const getTotalDayTime = (jobs) => {
-    const total = jobs.reduce(
-      (sum, job) => sum + job.sessions.reduce((s, t) => s + t, 0),
-      0
-    );
+    const total = jobs.reduce((sum, job) => {
+      return (
+        sum +
+        job.sessions.reduce(
+          (sessionSum, session) =>
+            sessionSum +
+            (typeof session === "number"
+              ? session
+              : session.duration || 0),
+          0
+        )
+      );
+    }, 0);
     return formatTime(total);
-  };
-
-  const getEndTime = (jobs) => {
-    let latest = 0;
-    jobs.forEach((job) => {
-      job.sessions.forEach((dur) => {
-        latest = Math.max(latest, dur);
-      });
-    });
-    return latest || null;
   };
 
   const handleDeleteSingleLog = (index) => {
@@ -82,7 +82,6 @@ const WorkHistoryPage = () => {
   };
 
   const handleEditChange = (logIdx, jobIdx, field, value) => {
-    console.log("✏️ Edited field:", { logIdx, jobIdx, field, value });
     const updatedLogs = [...logs];
     const actualIndex = logs.length - 1 - logIdx;
 
@@ -92,7 +91,9 @@ const WorkHistoryPage = () => {
       updatedLogs[actualIndex].jobs[jobIdx].notes = value.split("\n");
     } else if (field === "jobTime") {
       const ms = parseTimeInput(value);
-      updatedLogs[actualIndex].jobs[jobIdx].sessions = [ms];
+      updatedLogs[actualIndex].jobs[jobIdx].sessions = [
+        { id: `session-${Date.now()}`, type: "manual-edit", duration: ms },
+      ];
     } else if (field === "idle") {
       const ms = parseTimeInput(value);
       updatedLogs[actualIndex].idleTotal = ms;
@@ -101,7 +102,7 @@ const WorkHistoryPage = () => {
   };
 
   const parseTimeInput = (str) => {
-    const [h, m, s] = str.split(":" ).map((n) => parseInt(n, 10));
+    const [h, m, s] = str.split(":").map((n) => parseInt(n, 10));
     return ((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) * 1000;
   };
 
@@ -109,7 +110,6 @@ const WorkHistoryPage = () => {
     document.activeElement?.blur();
     const clonedLogs = JSON.parse(JSON.stringify(logs));
     localStorage.setItem("ghosttrackLogs", JSON.stringify(clonedLogs));
-    console.log("✅ Saving logs to localStorage:", clonedLogs);
     setLogs(clonedLogs);
     setEditMode({});
   };
@@ -138,13 +138,24 @@ const WorkHistoryPage = () => {
         .map((log, dateIdx) => {
           const formattedDate = getFormattedDate(log);
           const totalTime = getTotalDayTime(log.jobs);
-          const idleTime = formatTime(log.idleTotal || 0);
-          const startTimeStr = log.dayStartTime
-            ? new Date(log.dayStartTime).toLocaleTimeString([], {
+          const idleMs = 
+  typeof log.totalIdleTime === "number"
+    ? log.totalIdleTime
+    : typeof log.idleTotal === "number"
+    ? log.idleTotal
+    : (log.idle && typeof log.idle.total === "number" ? log.idle.total : 0);
+
+const idleTime = formatTime(idleMs);
+
+          const startTime =
+            log.dayStartTime || (log.jobs[0]?.sessions[0]?.startTime ?? null);
+          const startTimeStr = startTime
+            ? new Date(startTime).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })
             : "N/A";
+          const startTimeEstimated = !log.dayStartTime;
 
           return (
             <div key={dateIdx} className="mb-6">
@@ -160,7 +171,8 @@ const WorkHistoryPage = () => {
                     </span>
                   </div>
                   <div className="text-sm text-gray-700 mt-1">
-                    🕐 Start: {startTimeStr} • 💤 Idle: {idleTime}
+                    🕐 Start: {startTimeStr}{" "}
+                    {startTimeEstimated && "(Estimated)"} • 💤 Idle: {idleTime}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -173,7 +185,11 @@ const WorkHistoryPage = () => {
                       className="text-gray-600 hover:text-gray-800"
                       title="Edit"
                     >
-                      {editMode[dateIdx] ? <Save size={18} /> : <Pencil size={18} />}
+                      {editMode[dateIdx] ? (
+                        <Save size={18} />
+                      ) : (
+                        <Pencil size={18} />
+                      )}
                     </button>
                   )}
                   <button
@@ -193,8 +209,17 @@ const WorkHistoryPage = () => {
                   {log.jobs.map((job, jobIdx) => {
                     const jobKey = `${dateIdx}-${jobIdx}`;
                     const jobTime = formatTime(
-                      job.sessions.reduce((s, t) => s + t, 0)
+                      job.sessions.reduce(
+                        (s, session) =>
+                          s +
+                          (typeof session === "number"
+                            ? session
+                            : session.duration || 0),
+                        0
+                      )
                     );
+
+                    const safeNotes = job.notes || [];
 
                     return (
                       <div
@@ -207,7 +232,12 @@ const WorkHistoryPage = () => {
                               className="text-xl font-bold text-gray-900 border px-2 py-1 rounded"
                               defaultValue={job.name}
                               onBlur={(e) =>
-                                handleEditChange(dateIdx, jobIdx, "name", e.target.value)
+                                handleEditChange(
+                                  dateIdx,
+                                  jobIdx,
+                                  "name",
+                                  e.target.value
+                                )
                               }
                             />
                           ) : (
@@ -238,12 +268,14 @@ const WorkHistoryPage = () => {
                         </div>
 
                         <div className="text-sm text-gray-800 mb-2">
-                          <div className="font-medium mb-1">Tasks & Progress:</div>
+                          <div className="font-medium mb-1">
+                            Tasks & Progress:
+                          </div>
                           {editMode[dateIdx] ? (
                             <textarea
                               className="border w-full rounded px-2 py-1"
-                              rows={job.notes.length || 3}
-                              defaultValue={job.notes.join("\n")}
+                              rows={safeNotes.length || 3}
+                              defaultValue={safeNotes.join("\n")}
                               onBlur={(e) =>
                                 handleEditChange(
                                   dateIdx,
@@ -255,10 +287,10 @@ const WorkHistoryPage = () => {
                             />
                           ) : (
                             <ul className="list-disc pl-5">
-                              {job.notes.length === 0 ? (
+                              {safeNotes.length === 0 ? (
                                 <li>No notes</li>
                               ) : (
-                                job.notes.map((note, idx) => (
+                                safeNotes.map((note, idx) => (
                                   <li key={idx}>{note}</li>
                                 ))
                               )}
@@ -270,14 +302,21 @@ const WorkHistoryPage = () => {
                           onClick={() => toggleJobSessions(dateIdx, jobIdx)}
                           className="text-blue-600 text-xs underline mt-1 cursor-pointer"
                         >
-                          {expandedJobs[jobKey] ? "Hide Sessions" : "View Sessions"}
+                          {expandedJobs[jobKey]
+                            ? "Hide Sessions"
+                            : "View Sessions"}
                         </div>
 
                         {expandedJobs[jobKey] && (
                           <ul className="text-xs list-disc pl-6 mt-1 text-gray-700">
-                            {job.sessions.map((s, idx) => (
+                            {job.sessions.map((session, idx) => (
                               <li key={idx}>
-                                Session {idx + 1}: {formatTime(s)}
+                                Session {idx + 1}:{" "}
+                                {formatTime(
+                                  typeof session === "number"
+                                    ? session
+                                    : session.duration || 0
+                                )}
                               </li>
                             ))}
                           </ul>

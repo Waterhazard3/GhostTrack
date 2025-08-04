@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import JobCard from "./JobCard";
 import FixClockInMistake from "./FixClockInMistake";
 import { validateJob, validateLog } from "../utils/validateSchema";
+import { generateDailySummary } from "../utils/generateDailySummary";
 
 function TrackingPage() {
   const [tick, setTick] = useState(0);
@@ -112,33 +113,58 @@ function TrackingPage() {
   };
 
   const handleResumeToday = () => {
-    const log = getTodayLogFromHistory();
-    if (!log) return;
+  const log = getTodayLogFromHistory();
+  if (!log) return;
 
-    const restoredJobs = log.jobs.map((job) => ({
-      name: job.name,
-      sessions: [...job.sessions],
-      tasksByDate: {
-        [today]: job.notes || [],
-      },
-      isClockedIn: false,
-      startTime: null,
-      lastClockOut: null,
-    }));
+  const restoredJobs = log.jobs.map((job) => ({
+    name: job.name,
+    sessions: job.sessions.map((s) => {
+      if (typeof s === "number") {
+        return {
+          id: `session-${Date.now()}`,
+          type: "work",
+          reasonCode: "",
+          startTime: null,
+          endTime: null,
+          duration: s,
+        };
+      }
+      return s;
+    }),
+    tasksByDate: {
+      [today]: job.notes || [],
+    },
+    isClockedIn: false,
+    startTime: null,
+    lastClockOut: null,
+  }));
 
-    setJobs(restoredJobs);
-    localStorage.setItem("ghosttrackLiveJobs", JSON.stringify(restoredJobs));
+  setJobs(restoredJobs);
+  localStorage.setItem("ghosttrackLiveJobs", JSON.stringify(restoredJobs));
 
-    if (typeof log.idleTotal === "number") setIdleTotal(log.idleTotal);
-    if (log.idleStartTime) setIdleStartTime(log.idleStartTime);
-    setIsIdle(log.isIdle ?? true);
-    if (log.dayStartTime) {
-      setDayStartTime(log.dayStartTime);
-      localStorage.setItem("ghosttrackDayStartTime", log.dayStartTime.toString());
-    }
+  // ✅ Restore Idle
+  if (typeof log.idleTotal === "number") setIdleTotal(log.idleTotal);
+  if (log.idleStartTime) setIdleStartTime(log.idleStartTime);
+  setIsIdle(log.isIdle ?? true);
 
-    setViewStatus("active");
-  };
+  // ✅ Backfill dayStartTime if missing
+  let startTime = log.dayStartTime;
+  if (!startTime) {
+    const earliest = log.jobs
+      .flatMap((j) =>
+        j.sessions.map((s) =>
+          typeof s === "object" ? s.startTime : null
+        )
+      )
+      .filter(Boolean)
+      .sort((a, b) => a - b)[0];
+    startTime = earliest || Date.now();
+  }
+  setDayStartTime(startTime);
+  localStorage.setItem("ghosttrackDayStartTime", startTime.toString());
+
+  setViewStatus("active");
+};
 
   const handleAddJob = () => {
     if (!newJobName.trim()) return;
@@ -172,7 +198,14 @@ function TrackingPage() {
     if (job.isClockedIn) {
       const endTime = Date.now();
       const duration = endTime - job.startTime;
-      job.sessions.push(duration);
+      job.sessions.push({
+  id: `session-${Date.now()}`,
+  type: "work",
+  reasonCode: "",
+  startTime: job.startTime || null,
+  endTime: Date.now(),
+  duration: duration
+});
       job.lastClockOut = endTime;
       job.isClockedIn = false;
       job.startTime = null;
@@ -201,7 +234,15 @@ function TrackingPage() {
       if (j.isClockedIn) {
         const endTime = Date.now();
         const duration = endTime - j.startTime;
-        j.sessions.push(duration);
+        j.sessions.push({
+  id: `session-${Date.now()}`,
+  type: "work",
+  reasonCode: "",
+  startTime: j.startTime || null,
+  endTime: Date.now(),
+  duration: duration
+});
+
         j.lastClockOut = endTime;
         j.isClockedIn = false;
         j.startTime = null;
@@ -230,64 +271,98 @@ function TrackingPage() {
     setJobs(updated);
   };
 
-  const handleSaveToday = () => {
-    const anyClockedIn = jobs.some((job) => job.isClockedIn);
-    if (anyClockedIn) {
-      alert("⚠️ Please clock out of all jobs before saving.");
-      return;
-    }
+const handleSaveToday = () => {
+  const anyClockedIn = jobs.some((job) => job.isClockedIn);
+  if (anyClockedIn) {
+    alert("⚠️ Please clock out of all jobs before saving.");
+    return;
+  }
 
-    const finalIdleDuration = isIdle && idleStartTime ? Date.now() - idleStartTime : 0;
-    const summary = {
-      logId: today,
-      jobs: [],
-      idleTotal: idleTotal + finalIdleDuration,
-      idleStartTime: null,
-      isIdle: false,
-      dayStartTime,
-    };
+  // ✅ Ensure dayStartTime is set
+  let startTime = dayStartTime;
+  if (!startTime) {
+    const earliestJobStart = jobs
+      .flatMap((job) =>
+        job.sessions.map((s) =>
+          typeof s === "object" ? s.startTime : null
+        )
+      )
+      .filter(Boolean)
+      .sort((a, b) => a - b)[0];
+    startTime = earliestJobStart || Date.now();
+  }
 
-    jobs.forEach((job) => {
-      const jobSummary = {
-        name: job.name,
-        sessions: [...job.sessions],
-        notes: job.tasksByDate?.[today] || [],
+  // ✅ Calculate total idle time (ms)
+  // ✅ Calculate total idle time (ms)
+const finalIdleDuration = isIdle && idleStartTime ? Date.now() - idleStartTime : 0;
+const totalIdleTime = idleTotal + finalIdleDuration;
+
+// ✅ Build job summaries with totalTime
+const jobSummaries = jobs.map((job) => {
+  const sessions = job.sessions.map((s) => {
+    if (typeof s === "number") {
+      return {
+        id: `session-${Date.now()}`,
+        type: "work",
+        reasonCode: "",
+        startTime: null,
+        endTime: null,
+        duration: s,
       };
-      if (jobSummary.sessions.length > 0 || jobSummary.notes.length > 0) {
-        summary.jobs.push(jobSummary);
-      }
-    });
-
-    if (summary.jobs.length === 0 && summary.idleTotal === 0) {
-      alert("No work logged today to save.");
-      return;
     }
+    return s;
+  });
 
-   const previousLogs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]").map(validateLog);
-    const existingIndex = previousLogs.findIndex((log) => (log.logId || log.date) === today);
+  const totalTime = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
 
-    if (existingIndex !== -1) {
-      previousLogs[existingIndex] = summary;
-    } else {
-      previousLogs.push(summary);
-    }
-
-    const validatedLogs = previousLogs.map(validateLog);
-localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
-    localStorage.removeItem("ghosttrackLiveJobs");
-    localStorage.removeItem("ghosttrackDayStartTime");
-    localStorage.removeItem("ghosttrackIdleStartTime");
-    localStorage.removeItem("ghosttrackIdleTotal");
-    localStorage.removeItem("ghosttrackIsIdle");
-
-    setJobs([]);
-    setDayStartTime(null);
-    setIdleStartTime(null);
-    setIdleTotal(0);
-    setIsIdle(false);
-    setShowSaveSuccess(true);
-    setViewStatus("idle");
+  return {
+    name: job.name,
+    sessions,
+    notes: job.tasksByDate?.[today] || [],
+    totalTime, // ✅ store per-job total time
   };
+});
+
+// ✅ Save correct idle property
+const summary = {
+  logId: today,
+  jobs: jobSummaries,
+  idleTotal: totalIdleTime, // ✅ make sure this is idleTotal
+  idleStartTime: null,
+  isIdle: false,
+  dayStartTime: startTime,
+};
+
+  const previousLogs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+  const existingIndex = previousLogs.findIndex((log) => (log.logId || log.date) === today);
+
+  // ✅ Generate AI Daily Summary
+  const generatedSummary = generateDailySummary(summary);
+  summary.dailySummary = generatedSummary;
+
+  if (existingIndex !== -1) {
+    previousLogs[existingIndex] = summary;
+  } else {
+    previousLogs.push(summary);
+  }
+
+  const validatedLogs = previousLogs.map(validateLog);
+  localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
+
+  localStorage.removeItem("ghosttrackLiveJobs");
+  localStorage.removeItem("ghosttrackDayStartTime");
+  localStorage.removeItem("ghosttrackIdleStartTime");
+  localStorage.removeItem("ghosttrackIdleTotal");
+  localStorage.removeItem("ghosttrackIsIdle");
+
+  setJobs([]);
+  setDayStartTime(null);
+  setIdleStartTime(null);
+  setIdleTotal(0);
+  setIsIdle(false);
+  setShowSaveSuccess(true);
+  setViewStatus("idle");
+};
 
   const handleCancelToday = () => {
     if (window.confirm("Cancel and delete today's current log?")) {
