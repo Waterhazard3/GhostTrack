@@ -125,6 +125,7 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
   };
 
   const handleSaveToday = () => {
+    console.log("🟢 Save button clicked");
     const anyClockedIn = jobs.some((job) => job.isClockedIn);
     if (anyClockedIn) {
       alert("⚠️ Please clock out of all jobs before saving.");
