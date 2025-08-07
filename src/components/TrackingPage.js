@@ -201,8 +201,8 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
     if (existingIndex !== -1) previousLogs[existingIndex] = summary;
     else previousLogs.push(summary);
 
-    const validatedLogs = previousLogs.map(validateLog);
-    localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
+    const validatedLogs = previousLogs.map(validateLog).filter(Boolean);
+localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
 
     // Clear live session data
     localStorage.removeItem("ghosttrackLiveJobs");
