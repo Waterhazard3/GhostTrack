@@ -235,6 +235,12 @@ function TrackingPage() {
     setViewStatus("idle");
   };
 
+  const todayFormatted = new Date().toLocaleDateString("en-US", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
     const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
