@@ -45,13 +45,14 @@ function TrackingPage() {
 // ✅ More reliable view status logic — runs once on load
 useEffect(() => {
   const logs = (() => {
-    try {
-      return JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
-    } catch {
-      return [];
-    }
-  })();
-  const todayLog = logs.find((log) => (log.logId || log.date) === today);
+  try {
+    const parsed = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+})();
+const todayLog = logs.find((log) => (log.logId || log.date) === today);
 
   if (jobs.length > 0) {
     setViewStatus("active");
