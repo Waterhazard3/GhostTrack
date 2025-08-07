@@ -17,23 +17,22 @@ function TrackingPage() {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
   const {
-  jobs,
-  setJobs,
-  clockIn,
-  clockOut,
-  addJob,
-  deleteJob,
-  addTaskToJob,
-  idleTotal,
-  isIdle,
-  idleStartTime, // ✅ Add this line
-  takeBreak,
-  getElapsedTime,
-  tick,
-  resetIdleState,
-} = useSessionContext();
+    jobs,
+    setJobs,
+    clockIn,
+    clockOut,
+    addJob,
+    deleteJob,
+    addTaskToJob,
+    idleTotal,
+    isIdle,
+    idleStartTime,
+    takeBreak,
+    getElapsedTime,
+    tick,
+    resetIdleState,
+  } = useSessionContext();
 
-  // Check for new date
   useEffect(() => {
     const interval = setInterval(() => {
       const newDate = new Date().toISOString().split("T")[0];
@@ -41,41 +40,36 @@ function TrackingPage() {
     }, 60000);
     return () => clearInterval(interval);
   }, [currentDate]);
-// ✅ Restore dayStartTime after refresh or navigation
-// ✅ More reliable view status logic — runs once on load
-useEffect(() => {
-  const logs = (() => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-})();
-const todayLog = logs.find((log) => (log.logId || log.date) === today);
 
-  if (jobs.length > 0) {
-    setViewStatus("active");
-  } else if (todayLog) {
-    setViewStatus("resume");
-  } else {
-    setViewStatus("idle");
-  }
-}, []);
+  useEffect(() => {
+    const logs = (() => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    const todayLog = logs.find((log) => (log.logId || log.date) === today);
+
+    if (jobs.length > 0) setViewStatus("active");
+    else if (todayLog) setViewStatus("resume");
+    else setViewStatus("idle");
+  }, []);
 
   const handleStartTracking = () => {
-  const now = Date.now();
-  setDayStartTime(now);
-  localStorage.setItem("ghosttrackDayStartTime", now.toString());
-  setJobs([]); // start fresh
-  setViewStatus("active");
+    const now = Date.now();
+    setDayStartTime(now);
+    localStorage.setItem("ghosttrackDayStartTime", now.toString());
+    setJobs([]);
+    setViewStatus("active");
 
-  // ✅ Clear idle timer state and storage for clean log start
-  resetIdleState();
-  localStorage.removeItem("ghosttrackIdleStartTime");
-  localStorage.removeItem("ghosttrackIdleTotal");
-  localStorage.removeItem("ghosttrackIsIdle");
-};
+    resetIdleState();
+    localStorage.removeItem("ghosttrackIdleStartTime");
+    localStorage.removeItem("ghosttrackIdleTotal");
+    localStorage.removeItem("ghosttrackIsIdle");
+  };
 
   const handleResumeToday = () => {
     let logs = [];
@@ -105,14 +99,13 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
     if (!startTime) {
       const earliest = log.jobs
         .flatMap((j) =>
-          j.sessions.map((s) =>
-            typeof s === "object" ? s.startTime : null
-          )
+          j.sessions.map((s) => (typeof s === "object" ? s.startTime : null))
         )
         .filter(Boolean)
         .sort((a, b) => a - b)[0];
       startTime = earliest || Date.now();
     }
+
     setDayStartTime(startTime);
     localStorage.setItem("ghosttrackDayStartTime", startTime.toString());
     setViewStatus("active");
@@ -125,7 +118,6 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
   };
 
   const handleSaveToday = () => {
-    console.log("🟢 Save button clicked");
     const anyClockedIn = jobs.some((job) => job.isClockedIn);
     if (anyClockedIn) {
       alert("⚠️ Please clock out of all jobs before saving.");
@@ -136,9 +128,7 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
     if (!startTime) {
       const earliestJobStart = jobs
         .flatMap((job) =>
-          job.sessions.map((s) =>
-            typeof s === "object" ? s.startTime : null
-          )
+          job.sessions.map((s) => (typeof s === "object" ? s.startTime : null))
         )
         .filter(Boolean)
         .sort((a, b) => a - b)[0];
@@ -149,26 +139,25 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
       isIdle && localStorage.getItem("ghosttrackIdleStartTime")
         ? Date.now() - Number(localStorage.getItem("ghosttrackIdleStartTime"))
         : 0;
+
     const totalIdleTime = idleTotal + finalIdleDuration;
 
     const jobSummaries = jobs.map((job) => {
-      const sessions = job.sessions.map((s) => {
-        if (typeof s === "number") {
-          return {
-            id: `session-${Date.now()}`,
-            type: "work",
-            reasonCode: "",
-            startTime: null,
-            endTime: null,
-            duration: s,
-          };
-        }
-        return s;
-      });
-      const totalTime = sessions.reduce(
-        (sum, s) => sum + (s.duration || 0),
-        0
+      const sessions = job.sessions.map((s) =>
+        typeof s === "number"
+          ? {
+              id: `session-${Date.now()}`,
+              type: "work",
+              reasonCode: "",
+              startTime: null,
+              endTime: null,
+              duration: s,
+            }
+          : s
       );
+
+      const totalTime = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+
       return {
         name: job.name,
         sessions,
@@ -187,29 +176,27 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
     };
 
     let previousLogsRaw = localStorage.getItem("ghosttrackLogs");
-let previousLogs = [];
+    let previousLogs = [];
 
-try {
-  const parsed = JSON.parse(previousLogsRaw || "[]");
-  previousLogs = Array.isArray(parsed) ? parsed : [];
-} catch {
-  previousLogs = [];
-}
+    try {
+      const parsed = JSON.parse(previousLogsRaw || "[]");
+      previousLogs = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      previousLogs = [];
+    }
 
-const existingIndex = previousLogs.findIndex(
-  (log) => (log.logId || log.date) === today
-);
+    const existingIndex = previousLogs.findIndex(
+      (log) => (log.logId || log.date) === today
+    );
 
-    const generatedSummary = generateDailySummary(summary);
-    summary.dailySummary = generatedSummary;
+    summary.dailySummary = generateDailySummary(summary);
 
     if (existingIndex !== -1) previousLogs[existingIndex] = summary;
     else previousLogs.push(summary);
 
     const validatedLogs = previousLogs.map(validateLog).filter(Boolean);
-localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
+    localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
 
-    // Clear live session data
     localStorage.removeItem("ghosttrackLiveJobs");
     localStorage.removeItem("ghosttrackDayStartTime");
     localStorage.removeItem("ghosttrackIdleStartTime");
@@ -223,36 +210,30 @@ localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
   };
 
   const handleCancelToday = () => {
-    if (window.confirm("Cancel and delete today's current log?")) {
-      setJobs([]);
-      localStorage.removeItem("ghosttrackLiveJobs");
-      localStorage.removeItem("ghosttrackDayStartTime");
+    if (!window.confirm("Cancel and delete today's current log?")) return;
 
-      let logs = [];
-      try {
-        logs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
-      } catch {
-        logs = [];
-      }
-      const stillHasSavedLog = Boolean(
-        logs.find((log) => (log.logId || log.date) === today)
-      );
-      if (!stillHasSavedLog) {
-        localStorage.removeItem("ghosttrackIdleStartTime");
-        localStorage.removeItem("ghosttrackIdleTotal");
-        localStorage.removeItem("ghosttrackIsIdle");
-      }
+    setJobs([]);
+    localStorage.removeItem("ghosttrackLiveJobs");
+    localStorage.removeItem("ghosttrackDayStartTime");
 
-      setViewStatus("idle");
+    let logs = [];
+    try {
+      logs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+    } catch {
+      logs = [];
     }
-  };
 
-  const todayFormatted = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+    const stillHasSavedLog = Boolean(
+      logs.find((log) => (log.logId || log.date) === today)
+    );
+    if (!stillHasSavedLog) {
+      localStorage.removeItem("ghosttrackIdleStartTime");
+      localStorage.removeItem("ghosttrackIdleTotal");
+      localStorage.removeItem("ghosttrackIsIdle");
+    }
+
+    setViewStatus("idle");
+  };
 
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -261,9 +242,10 @@ localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
     const secs = String(totalSeconds % 60).padStart(2, "0");
     return `${hrs}:${mins}:${secs}`;
   };
-// ✅ Calculate live idle duration for accurate ticking display
-const liveIdleDuration = isIdle && idleStartTime ? Date.now() - idleStartTime : 0;
-const idleDisplayTotal = idleTotal + liveIdleDuration;
+
+  const liveIdleDuration =
+    isIdle && idleStartTime ? Date.now() - idleStartTime : 0;
+  const idleDisplayTotal = idleTotal + liveIdleDuration;
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-5xl mx-auto font-sans bg-gray-100 min-h-screen">
       {showSaveSuccess && (
