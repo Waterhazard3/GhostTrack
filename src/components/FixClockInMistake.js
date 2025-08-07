@@ -14,16 +14,19 @@ function FixClockInMistake({
   const [toJob, setToJob] = useState("");
   const [correctionTime, setCorrectionTime] = useState("");
 
-  const handleConfirmFix = () => {
-    if (!fromJob || !toJob || !correctionTime) return alert("Fill out all fields");
+  const IDLE_KEY = "__IDLE__";
 
-    const newJobs = [...jobs];
+  const handleConfirmFix = () => {
+    if (!fromJob || !toJob || !correctionTime)
+      return alert("Fill out all fields");
+
+    const updatedJobs = [...jobs];
     const correctionDateTime = new Date();
     const [h, m] = correctionTime.split(":");
     correctionDateTime.setHours(Number(h), Number(m), 0, 0);
     const correctionTimestamp = correctionDateTime.getTime();
 
-    if (fromJob === "__IDLE__") {
+    if (fromJob === IDLE_KEY) {
       const now = Date.now();
       const mistakenIdle = now - correctionTimestamp;
       if (mistakenIdle > 0) {
@@ -35,18 +38,18 @@ function FixClockInMistake({
       const fromIndex = jobs.findIndex((j) => j.name === fromJob);
       if (fromIndex === -1) return alert("Source job not found");
 
-      const fromJobRef = newJobs[fromIndex];
-      if (fromJobRef.isClockedIn && fromJobRef.startTime < correctionTimestamp) {
-        const correctedDuration = correctionTimestamp - fromJobRef.startTime;
-        fromJobRef.sessions.push(correctedDuration);
-        fromJobRef.startTime = null;
-        fromJobRef.isClockedIn = false;
-        fromJobRef.lastClockOut = correctionTimestamp;
+      const fromJobObj = updatedJobs[fromIndex];
+      if (fromJobObj.isClockedIn && fromJobObj.startTime < correctionTimestamp) {
+        const correctedDuration = correctionTimestamp - fromJobObj.startTime;
+        fromJobObj.sessions.push(correctedDuration);
+        fromJobObj.startTime = null;
+        fromJobObj.isClockedIn = false;
+        fromJobObj.lastClockOut = correctionTimestamp;
       }
     }
 
-    if (toJob === "__IDLE__") {
-      newJobs.forEach((job) => {
+    if (toJob === IDLE_KEY) {
+      updatedJobs.forEach((job) => {
         if (job.isClockedIn && job.startTime < correctionTimestamp) {
           const duration = correctionTimestamp - job.startTime;
           job.sessions.push(duration);
@@ -61,7 +64,7 @@ function FixClockInMistake({
       localStorage.setItem("ghosttrackIsIdle", "true");
       localStorage.setItem("ghosttrackIdleStartTime", correctionTimestamp.toString());
 
-      setJobs(newJobs);
+      setJobs(updatedJobs);
       resetUI();
       return;
     }
@@ -69,7 +72,7 @@ function FixClockInMistake({
     const toIndex = jobs.findIndex((j) => j.name === toJob);
     if (toIndex === -1) return alert("Target job not found");
 
-    newJobs.forEach((job) => {
+    updatedJobs.forEach((job) => {
       if (job.isClockedIn) {
         const now = Date.now();
         const duration = now - job.startTime;
@@ -80,11 +83,11 @@ function FixClockInMistake({
       }
     });
 
-    const toJobRef = newJobs[toIndex];
-    toJobRef.isClockedIn = true;
-    toJobRef.startTime = correctionTimestamp;
+    const toJobObj = updatedJobs[toIndex];
+    toJobObj.isClockedIn = true;
+    toJobObj.startTime = correctionTimestamp;
 
-    setJobs(newJobs);
+    setJobs(updatedJobs);
     resetUI();
   };
 
@@ -111,46 +114,46 @@ function FixClockInMistake({
         <div className="bg-yellow-50 p-4 border border-yellow-500 rounded space-y-3">
           <h3 className="font-bold text-yellow-800">Fix Clock-In Mistake</h3>
 
-          {/* MadLibs-style sentence */}
-<div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 text-base text-gray-800">
-  <span className="font-bold">I forgot to clock out of:</span>
-  <select
-    value={fromJob}
-    onChange={(e) => setFromJob(e.target.value)}
-    className="border p-2 rounded"
-  >
-    <option value="">Select job</option>
-    <option value="__IDLE__">Break / Idle Time</option>
-    {jobs.map((j, idx) => (
-      <option key={idx} value={j.name}>
-        {j.name}
-      </option>
-    ))}
-  </select>
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2 text-base text-gray-800">
+            <span className="font-bold">I forgot to clock out of:</span>
+            <select
+              value={fromJob}
+              onChange={(e) => setFromJob(e.target.value)}
+              className="border p-2 rounded"
+            >
+              <option value="">Select job</option>
+              <option value={IDLE_KEY}>Break / Idle Time</option>
+              {jobs.map((j, idx) => (
+                <option key={idx} value={j.name}>
+                  {j.name}
+                </option>
+              ))}
+            </select>
 
-  <span className="font-bold">at around:</span>
-  <input
-    type="time"
-    value={correctionTime}
-    onChange={(e) => setCorrectionTime(e.target.value)}
-    className="border p-2 rounded"
-  />
+            <span className="font-bold">at around:</span>
+            <input
+              type="time"
+              value={correctionTime}
+              onChange={(e) => setCorrectionTime(e.target.value)}
+              className="border p-2 rounded"
+              pattern="\d{2}:\d{2}"
+            />
 
-  <span className="font-bold">when I meant to be clocked in to:</span>
-  <select
-    value={toJob}
-    onChange={(e) => setToJob(e.target.value)}
-    className="border p-2 rounded"
-  >
-    <option value="">Select job</option>
-    <option value="__IDLE__">Idle Time / Break</option>
-    {jobs.map((j, idx) => (
-      <option key={idx} value={j.name}>
-        {j.name}
-      </option>
-    ))}
-  </select>
-</div>
+            <span className="font-bold">when I meant to be clocked in to:</span>
+            <select
+              value={toJob}
+              onChange={(e) => setToJob(e.target.value)}
+              className="border p-2 rounded"
+            >
+              <option value="">Select job</option>
+              <option value={IDLE_KEY}>Idle Time / Break</option>
+              {jobs.map((j, idx) => (
+                <option key={idx} value={j.name}>
+                  {j.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="flex gap-2 mt-2">
             <button

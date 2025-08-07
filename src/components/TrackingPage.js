@@ -33,6 +33,7 @@ function TrackingPage() {
     resetIdleState,
   } = useSessionContext();
 
+  // Date rollover checker
   useEffect(() => {
     const interval = setInterval(() => {
       const newDate = new Date().toISOString().split("T")[0];
@@ -41,6 +42,7 @@ function TrackingPage() {
     return () => clearInterval(interval);
   }, [currentDate]);
 
+  // Initialize view status
   useEffect(() => {
     const logs = (() => {
       try {
@@ -78,6 +80,7 @@ function TrackingPage() {
     } catch {
       logs = [];
     }
+
     const log = logs.find((l) => (l.logId || l.date) === today);
     if (!log) return;
 
@@ -85,9 +88,7 @@ function TrackingPage() {
       id: job.id || `job-${Date.now()}`,
       name: job.name,
       sessions: job.sessions,
-      tasksByDate: {
-        [today]: job.notes || [],
-      },
+      tasksByDate: { [today]: job.notes || [] },
       isClockedIn: false,
       startTime: null,
       lastClockOut: null,
@@ -226,6 +227,7 @@ function TrackingPage() {
     const stillHasSavedLog = Boolean(
       logs.find((log) => (log.logId || log.date) === today)
     );
+
     if (!stillHasSavedLog) {
       localStorage.removeItem("ghosttrackIdleStartTime");
       localStorage.removeItem("ghosttrackIdleTotal");
@@ -235,12 +237,6 @@ function TrackingPage() {
     setViewStatus("idle");
   };
 
-  const todayFormatted = new Date().toLocaleDateString("en-US", {
-  weekday: "long",
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
     const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
@@ -249,8 +245,16 @@ function TrackingPage() {
     return `${hrs}:${mins}:${secs}`;
   };
 
+  const todayFormatted = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   const liveIdleDuration =
     isIdle && idleStartTime ? Date.now() - idleStartTime : 0;
+
   const idleDisplayTotal = idleTotal + liveIdleDuration;
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-5xl mx-auto font-sans bg-gray-100 min-h-screen">
