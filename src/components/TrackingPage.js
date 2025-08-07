@@ -186,15 +186,19 @@ const todayLog = logs.find((log) => (log.logId || log.date) === today);
       dayStartTime: startTime,
     };
 
-    let previousLogs = [];
-    try {
-      previousLogs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
-    } catch {
-      previousLogs = [];
-    }
-    const existingIndex = previousLogs.findIndex(
-      (log) => (log.logId || log.date) === today
-    );
+    let previousLogsRaw = localStorage.getItem("ghosttrackLogs");
+let previousLogs = [];
+
+try {
+  const parsed = JSON.parse(previousLogsRaw || "[]");
+  previousLogs = Array.isArray(parsed) ? parsed : [];
+} catch {
+  previousLogs = [];
+}
+
+const existingIndex = previousLogs.findIndex(
+  (log) => (log.logId || log.date) === today
+);
 
     const generatedSummary = generateDailySummary(summary);
     summary.dailySummary = generatedSummary;
