@@ -16,6 +16,14 @@ export function validateJob(job) {
     sessions,
     aiSummary: job.aiSummary || '',
     sensorData: job.sensorData || { images: [], audio: [], gps: [] },
+
+    // ✅ Preserve these for live timers
+    isClockedIn: job.isClockedIn || false,
+    startTime: job.startTime || null,
+    lastClockOut: job.lastClockOut || null,
+
+    // ✅ Preserve existing task data
+    tasksByDate: job.tasksByDate || {},
   };
 }
 

@@ -13,9 +13,13 @@ const formatTime = (ms) => {
 const WorkHistoryPage = () => {
   const [expandedDateIndex, setExpandedDateIndex] = useState(null);
   const [expandedJobs, setExpandedJobs] = useState({});
-  const [logs, setLogs] = useState(
-    JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]")
-  );
+  const [logs, setLogs] = useState(() => {
+  try {
+    return JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+  } catch {
+    return [];
+  }
+});
   const [editMode, setEditMode] = useState({});
 
   const toggleDate = (index) => {
@@ -33,7 +37,8 @@ const WorkHistoryPage = () => {
   const getFormattedDate = (log) => {
     const rawDate = log.date || log.logId;
     if (!rawDate) return "Invalid Date";
-    const [year, month, day] = rawDate.split("-");
+    const safeDate = typeof rawDate === "string" ? rawDate : "";
+const [year = "0000", month = "00", day = "00"] = safeDate.split("-");
     const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
     const weekday = dateObj.toLocaleDateString("en-US", { weekday: "long" });
     return `${weekday}, ${month}-${day}-${year.slice(2)}`;
@@ -149,12 +154,10 @@ const idleTime = formatTime(idleMs);
 
           const startTime =
             log.dayStartTime || (log.jobs[0]?.sessions[0]?.startTime ?? null);
-          const startTimeStr = startTime
-            ? new Date(startTime).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "N/A";
+          const startTimeStr =
+  typeof startTime === "number" && !isNaN(startTime)
+    ? new Date(startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "N/A";
           const startTimeEstimated = !log.dayStartTime;
 
           return (

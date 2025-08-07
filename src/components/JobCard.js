@@ -1,6 +1,15 @@
 import React, { useState } from "react";
 
-function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }) {
+function JobCard({
+  job,
+  tick, // ✅ New prop to trigger re-render
+  elapsedTotalFormatted,
+  elapsedCurrentSessionFormatted,
+  onAddTask,
+  onToggleClock,
+  onDeleteSession,
+  onDeleteJob,
+}) {
   const [newTask, setNewTask] = useState("");
   const [editingTasks, setEditingTasks] = useState(false);
   const [taskDrafts, setTaskDrafts] = useState([]);
@@ -10,21 +19,6 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
 
   const today = new Date().toISOString().split("T")[0];
   const todaysTasks = job.tasksByDate?.[today] || [];
-
-  const formatTime = (ms) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-    const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-    const secs = String(totalSeconds % 60).padStart(2, "0");
-    return `${hrs}:${mins}:${secs}`;
-  };
-
-  const currentSessionTime = job.isClockedIn ? Date.now() - job.startTime : 0;
-  const totalTime =
-    job.sessions.reduce(
-      (sum, session) => sum + (typeof session === "number" ? session : (session.duration || 0)),
-      0
-    ) + (job.isClockedIn ? currentSessionTime : 0);
 
   const handleStartEditingTasks = () => {
     setTaskDrafts([...todaysTasks]);
@@ -68,6 +62,14 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
     if (window.confirm("❗ Are you sure you want to permanently delete this job?")) {
       onDeleteJob();
     }
+  };
+
+  const formatTime = (ms) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+    const secs = String(totalSeconds % 60).padStart(2, "0");
+    return `${hrs}:${mins}:${secs}`;
   };
 
   return (
@@ -213,10 +215,12 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
           }`}
         >
           Current Session:{" "}
-          <span className="font-semibold">{formatTime(currentSessionTime)}</span>
+          <span className="font-semibold">
+            {elapsedCurrentSessionFormatted}
+          </span>
         </p>
         <p className="font-bold text-xl text-gray-800 mt-1">
-          Total Today: {formatTime(totalTime)}
+          Total Today: {elapsedTotalFormatted}
         </p>
         <button
           onClick={() => setShowSessions(!showSessions)}
@@ -227,18 +231,25 @@ function JobCard({ job, onAddTask, onToggleClock, onDeleteSession, onDeleteJob }
 
         {showSessions && (
           <ul className="text-xs list-disc pl-5 mt-2 text-gray-700 space-y-1 bg-gray-100 p-2 rounded-lg">
-            {job.sessions.map((session, idx) => (
-              <li key={idx}>
-                Session {idx + 1}:{" "}
-                {formatTime(typeof session === "number" ? session : (session.duration || 0))}
-                <button
-                  onClick={() => onDeleteSession(idx)}
-                  className="ml-2 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
+            {job.sessions.map((session, idx) => {
+  const duration = typeof session === "number"
+    ? session
+    : typeof session?.duration === "number"
+      ? session.duration
+      : 0;
+
+  return (
+    <li key={idx}>
+      Session {idx + 1}: {formatTime(duration)}
+      <button
+        onClick={() => onDeleteSession(idx)}
+        className="ml-2 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
+      >
+        Delete
+      </button>
+    </li>
+  );
+})}
           </ul>
         )}
       </div>
