@@ -12,31 +12,34 @@ export const SessionProvider = ({ children }) => {
   });
 
   const [tick, setTick] = useState(0);
+
   const [idleTotal, setIdleTotal] = useState(() => {
     const saved = localStorage.getItem("ghosttrackIdleTotal");
     return saved ? Number(saved) : 0;
   });
+
   const [isIdle, setIsIdle] = useState(() => {
     return localStorage.getItem("ghosttrackIsIdle") === "true";
   });
+
   const [idleStartTime, setIdleStartTime] = useState(() => {
     const saved = localStorage.getItem("ghosttrackIdleStartTime");
     return saved ? Number(saved) : null;
   });
 
-  // ✅ STEP 1: Rehydrate jobs from ghosttrackLiveJobs if empty
+  // ✅ Rehydrate jobs on initial load if needed
   useEffect(() => {
     if (jobs.length === 0) {
       try {
         const saved = JSON.parse(localStorage.getItem("ghosttrackLiveJobs") || "[]");
         if (saved.length > 0) setJobs(saved);
       } catch {
-        // ignore
+        // ignore corrupt JSON
       }
     }
   }, []);
 
-  // Tick every second to drive timers
+  // ✅ Tick every second
   useEffect(() => {
     const interval = setInterval(() => {
       setTick((t) => t + 1);
@@ -44,24 +47,23 @@ export const SessionProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Idle tracking logic (this will be replaced in Step 2)
-  // ✅ Tick-based idle tracking — clean and consistent
-useEffect(() => {
-  const someoneClockedIn = jobs.some((j) => j.isClockedIn);
+  // ✅ Idle time tracker (based on clock-in status)
+  useEffect(() => {
+    const someoneClockedIn = jobs.some((j) => j.isClockedIn);
 
-  if (!someoneClockedIn && !isIdle && jobs.length > 0) {
-    setIdleStartTime(Date.now());
-    setIsIdle(true);
-  } else if (someoneClockedIn && isIdle) {
-    if (idleStartTime) {
-      setIdleTotal((prev) => prev + (Date.now() - idleStartTime));
+    if (!someoneClockedIn && !isIdle && jobs.length > 0) {
+      setIdleStartTime(Date.now());
+      setIsIdle(true);
+    } else if (someoneClockedIn && isIdle) {
+      if (idleStartTime) {
+        setIdleTotal((prev) => prev + (Date.now() - idleStartTime));
+      }
+      setIdleStartTime(null);
+      setIsIdle(false);
     }
-    setIdleStartTime(null);
-    setIsIdle(false);
-  }
-}, [tick]);
+  }, [tick]);
 
-  // Persist all session state
+  // ✅ Persist everything
   useEffect(() => {
     localStorage.setItem("ghosttrackLiveJobs", JSON.stringify(jobs));
     localStorage.setItem("ghosttrackIdleTotal", idleTotal.toString());
@@ -69,73 +71,82 @@ useEffect(() => {
     localStorage.setItem("ghosttrackIdleStartTime", idleStartTime?.toString() || "");
   }, [jobs, idleTotal, isIdle, idleStartTime]);
 
+  // --------------------------------------------
+  // Job control functions
+  // --------------------------------------------
+
   const clockIn = (index) => {
     const updated = [...jobs];
-    const job = updated[index];
+    const now = Date.now();
 
     updated.forEach((j, i) => {
       if (i !== index && j.isClockedIn) {
-        const endTime = Date.now();
-        const duration = endTime - j.startTime;
+        const duration = now - j.startTime;
         j.sessions.push({
-          id: `session-${Date.now()}`,
+          id: `session-${now}`,
           type: "work",
           reasonCode: "",
-          startTime: j.startTime || null,
-          endTime: endTime,
+          startTime: j.startTime,
+          endTime: now,
           duration,
         });
-        j.lastClockOut = endTime;
         j.isClockedIn = false;
         j.startTime = null;
+        j.lastClockOut = now;
       }
     });
 
+    const job = updated[index];
     job.isClockedIn = true;
-    job.startTime = Date.now();
+    job.startTime = now;
+
     setJobs(updated);
   };
 
   const clockOut = (index) => {
     const updated = [...jobs];
+    const now = Date.now();
+
     const job = updated[index];
-    const endTime = Date.now();
-    const duration = endTime - job.startTime;
+    const duration = now - job.startTime;
 
     job.sessions.push({
-      id: `session-${Date.now()}`,
+      id: `session-${now}`,
       type: "work",
       reasonCode: "",
-      startTime: job.startTime || null,
-      endTime: endTime,
+      startTime: job.startTime,
+      endTime: now,
       duration,
     });
-    job.lastClockOut = endTime;
+
     job.isClockedIn = false;
     job.startTime = null;
+    job.lastClockOut = now;
 
     setJobs(updated);
   };
 
   const takeBreak = () => {
     const updated = [...jobs];
+    const now = Date.now();
+
     updated.forEach((j) => {
       if (j.isClockedIn) {
-        const endTime = Date.now();
-        const duration = endTime - j.startTime;
+        const duration = now - j.startTime;
         j.sessions.push({
-          id: `session-${Date.now()}`,
+          id: `session-${now}`,
           type: "work",
           reasonCode: "",
-          startTime: j.startTime || null,
-          endTime: endTime,
+          startTime: j.startTime,
+          endTime: now,
           duration,
         });
-        j.lastClockOut = endTime;
         j.isClockedIn = false;
         j.startTime = null;
+        j.lastClockOut = now;
       }
     });
+
     setJobs(updated);
   };
 
@@ -149,6 +160,7 @@ useEffect(() => {
       startTime: null,
       lastClockOut: null,
     };
+
     setJobs([newJob, ...jobs]);
   };
 
@@ -161,10 +173,13 @@ useEffect(() => {
   const addTaskToJob = (index, task) => {
     const updated = [...jobs];
     const job = updated[index];
-    if (!job.tasksByDate) job.tasksByDate = {};
     const today = new Date().toISOString().split("T")[0];
+
+    if (!job.tasksByDate) job.tasksByDate = {};
     if (!job.tasksByDate[today]) job.tasksByDate[today] = [];
+
     job.tasksByDate[today].push(task);
+
     setJobs(updated);
   };
 
@@ -173,30 +188,32 @@ useEffect(() => {
     if (!job.isClockedIn || !job.startTime) return 0;
     return Date.now() - job.startTime;
   };
-const resetIdleState = () => {
-  setIdleTotal(0);
-  setIsIdle(false);
-  setIdleStartTime(null);
-};
+
+  const resetIdleState = () => {
+    setIdleTotal(0);
+    setIsIdle(false);
+    setIdleStartTime(null);
+  };
+
   return (
     <SessionContext.Provider
-  value={{
-    jobs,
-    setJobs,
-    idleTotal,
-    isIdle,
-    idleStartTime,
-    tick,
-    clockIn,
-    clockOut,
-    takeBreak,
-    addJob,
-    deleteJob,
-    addTaskToJob,
-    getElapsedTime,
-    resetIdleState, // ✅ ADD THIS LINE
-  }}
->
+      value={{
+        jobs,
+        setJobs,
+        idleTotal,
+        isIdle,
+        idleStartTime,
+        tick,
+        clockIn,
+        clockOut,
+        takeBreak,
+        addJob,
+        deleteJob,
+        addTaskToJob,
+        getElapsedTime,
+        resetIdleState,
+      }}
+    >
       {children}
     </SessionContext.Provider>
   );

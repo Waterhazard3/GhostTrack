@@ -2,11 +2,11 @@ import React from "react";
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import WorkHistoryPage from "./components/WorkHistoryPage";
 import TrackingPage from "./components/TrackingPage";
-import { SessionProvider } from "./context/SessionContext"; // ✅ NEW
+import { SessionProvider } from "./context/SessionContext";
 
 function App() {
   return (
-    <SessionProvider> {/* ✅ Wrap the whole app */}
+    <SessionProvider>
       <Router>
         <div>
           <nav className="p-4 bg-gray-200 mb-8 flex gap-4">
@@ -33,7 +33,9 @@ function App() {
               element={
                 <div className="text-center pt-12">
                   <h1 className="text-3xl font-bold mb-2">Welcome to GhostTrack</h1>
-                  <p className="text-lg text-gray-700">Select an option above to get started.</p>
+                  <p className="text-lg text-gray-700">
+                    Select an option above to get started.
+                  </p>
                 </div>
               }
             />
