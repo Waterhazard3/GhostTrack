@@ -15,7 +15,8 @@ const WorkHistoryPage = () => {
   const [expandedJobs, setExpandedJobs] = useState({});
   const [logs, setLogs] = useState(() => {
   try {
-    return JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+    const parsed = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -209,7 +210,8 @@ const idleTime = formatTime(idleMs);
 
               {expandedDateIndex === dateIdx && (
                 <div className="mt-4 space-y-4 pl-2">
-                  {log.jobs.map((job, jobIdx) => {
+                  {Array.isArray(log.jobs) &&
+  log.jobs.map((job, jobIdx) => {
                     const jobKey = `${dateIdx}-${jobIdx}`;
                     const jobTime = formatTime(
                       job.sessions.reduce(
