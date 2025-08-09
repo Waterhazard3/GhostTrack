@@ -48,20 +48,23 @@ export const SessionProvider = ({ children }) => {
   }, []);
 
   // ✅ Idle time tracker (based on clock-in status)
-  useEffect(() => {
-    const someoneClockedIn = jobs.some((j) => j.isClockedIn);
+ useEffect(() => {
+  const someoneClockedIn = jobs.some((j) => j.isClockedIn);
 
-    if (!someoneClockedIn && !isIdle && jobs.length > 0) {
+  if (!someoneClockedIn && !isIdle && jobs.length > 0) {
+    // Only start idle if we don't already have a restored idleStartTime
+    if (!idleStartTime) {
       setIdleStartTime(Date.now());
-      setIsIdle(true);
-    } else if (someoneClockedIn && isIdle) {
-      if (idleStartTime) {
-        setIdleTotal((prev) => prev + (Date.now() - idleStartTime));
-      }
-      setIdleStartTime(null);
-      setIsIdle(false);
     }
-  }, [tick]);
+    setIsIdle(true);
+  } else if (someoneClockedIn && isIdle) {
+    if (idleStartTime) {
+      setIdleTotal((prev) => prev + (Date.now() - idleStartTime));
+    }
+    setIdleStartTime(null);
+    setIsIdle(false);
+  }
+}, [tick]);
 
   // ✅ Persist everything
   useEffect(() => {
@@ -196,27 +199,30 @@ export const SessionProvider = ({ children }) => {
   };
 
   return (
-    <SessionContext.Provider
-      value={{
-        jobs,
-        setJobs,
-        idleTotal,
-        isIdle,
-        idleStartTime,
-        tick,
-        clockIn,
-        clockOut,
-        takeBreak,
-        addJob,
-        deleteJob,
-        addTaskToJob,
-        getElapsedTime,
-        resetIdleState,
-      }}
-    >
-      {children}
-    </SessionContext.Provider>
-  );
+  <SessionContext.Provider
+    value={{
+      jobs,
+      setJobs,
+      idleTotal,
+      setIdleTotal,
+      isIdle,
+      setIsIdle,
+      idleStartTime,
+      setIdleStartTime, // ✅ Add setIdleStartTime here
+      tick,
+      clockIn,
+      clockOut,
+      takeBreak,
+      addJob,
+      deleteJob,
+      addTaskToJob,
+      getElapsedTime,
+      resetIdleState,
+    }}
+  >
+    {children}
+  </SessionContext.Provider>
+);
 };
 
 export const useSessionContext = () => useContext(SessionContext);

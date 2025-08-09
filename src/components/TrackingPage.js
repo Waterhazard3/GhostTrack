@@ -16,22 +16,9 @@ function TrackingPage() {
   });
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
-  const {
-    jobs,
-    setJobs,
-    clockIn,
-    clockOut,
-    addJob,
-    deleteJob,
-    addTaskToJob,
-    idleTotal,
-    isIdle,
-    idleStartTime,
-    takeBreak,
-    getElapsedTime,
-    tick,
-    resetIdleState,
-  } = useSessionContext();
+  // Accessing context for job and idle state management
+  const { jobs, setJobs, clockIn, clockOut, addJob, deleteJob, addTaskToJob, idleTotal, setIdleTotal, isIdle, setIsIdle, idleStartTime, setIdleStartTime, takeBreak, getElapsedTime, tick, resetIdleState } = useSessionContext();
+
 
   // Date rollover checker
   useEffect(() => {
@@ -60,6 +47,28 @@ function TrackingPage() {
     else setViewStatus("idle");
   }, []);
 
+  // **Handle adding task to job** (added function)
+  const handleAddTask = (jobIdx, task) => {
+    const updatedJobs = [...jobs];  // Clone the jobs array
+    const job = updatedJobs[jobIdx];  // Get the specific job
+    const currentDate = new Date().toISOString().split("T")[0];  // Get today's date in YYYY-MM-DD format
+
+    // Initialize tasksByDate if it doesn't exist
+    if (!job.tasksByDate) {
+      job.tasksByDate = {};
+    }
+
+    // Initialize the current date's tasks array if it doesn't exist
+    if (!job.tasksByDate[currentDate]) {
+      job.tasksByDate[currentDate] = [];
+    }
+
+    // Add the task to the current date's task list
+    job.tasksByDate[currentDate].push(task);
+
+    setJobs(updatedJobs);  // Update the jobs state with the new task
+  };
+
   const handleStartTracking = () => {
     const now = Date.now();
     setDayStartTime(now);
@@ -74,43 +83,64 @@ function TrackingPage() {
   };
 
   const handleResumeToday = () => {
-    let logs = [];
-    try {
-      logs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
-    } catch {
-      logs = [];
+  let logs = [];
+  try {
+    logs = JSON.parse(localStorage.getItem("ghosttrackLogs") || "[]");
+  } catch {
+    logs = [];
+  }
+
+  const log = logs.find((l) => (l.logId || l.date) === today);
+  if (!log) return;
+
+  const restoredJobs = log.jobs.map((job) => ({
+    id: job.id || `job-${Date.now()}`,
+    name: job.name,
+    sessions: job.sessions,
+    tasksByDate: job.tasksByDate || {},
+    isClockedIn: false,
+    startTime: null,
+    lastClockOut: null,
+  }));
+
+  setJobs(restoredJobs);
+
+  let startTime = log.dayStartTime;
+  if (!startTime) {
+    const earliest = log.jobs
+      .flatMap((j) =>
+        j.sessions.map((s) => (typeof s === "object" ? s.startTime : null))
+      )
+      .filter(Boolean)
+      .sort((a, b) => a - b)[0];
+    startTime = earliest || Date.now();
+  }
+
+  setDayStartTime(startTime);
+  localStorage.setItem("ghosttrackDayStartTime", startTime.toString());
+
+  // ✅ Restore idle total
+  if (typeof log.idleTotal === "number") {
+    setIdleTotal(log.idleTotal);
+  } else {
+    const storedIdleTime = localStorage.getItem("ghosttrackIdleTotal");
+    if (storedIdleTime) setIdleTotal(Number(storedIdleTime));
+  }
+
+  // ✅ Restore idle start time (only if still idle when saved)
+  if (log.isIdle && log.idleStartTime) {
+    setIdleStartTime(log.idleStartTime);
+    setIsIdle(true);
+  } else {
+    const storedIdleStartTime = localStorage.getItem("ghosttrackIdleStartTime");
+    if (storedIdleStartTime) {
+      setIdleStartTime(Number(storedIdleStartTime));
+      setIsIdle(true);
     }
+  }
 
-    const log = logs.find((l) => (l.logId || l.date) === today);
-    if (!log) return;
-
-    const restoredJobs = log.jobs.map((job) => ({
-      id: job.id || `job-${Date.now()}`,
-      name: job.name,
-      sessions: job.sessions,
-      tasksByDate: { [today]: job.notes || [] },
-      isClockedIn: false,
-      startTime: null,
-      lastClockOut: null,
-    }));
-
-    setJobs(restoredJobs);
-
-    let startTime = log.dayStartTime;
-    if (!startTime) {
-      const earliest = log.jobs
-        .flatMap((j) =>
-          j.sessions.map((s) => (typeof s === "object" ? s.startTime : null))
-        )
-        .filter(Boolean)
-        .sort((a, b) => a - b)[0];
-      startTime = earliest || Date.now();
-    }
-
-    setDayStartTime(startTime);
-    localStorage.setItem("ghosttrackDayStartTime", startTime.toString());
-    setViewStatus("active");
-  };
+  setViewStatus("active");
+};
 
   const handleAddJob = () => {
     if (!newJobName.trim()) return;
@@ -119,96 +149,109 @@ function TrackingPage() {
   };
 
   const handleSaveToday = () => {
-    const anyClockedIn = jobs.some((job) => job.isClockedIn);
-    if (anyClockedIn) {
-      alert("⚠️ Please clock out of all jobs before saving.");
-      return;
-    }
+  const anyClockedIn = jobs.some((job) => job.isClockedIn);
+  if (anyClockedIn) {
+    alert("⚠️ Please clock out of all jobs before saving.");
+    return;
+  }
 
-    let startTime = dayStartTime;
-    if (!startTime) {
-      const earliestJobStart = jobs
-        .flatMap((job) =>
-          job.sessions.map((s) => (typeof s === "object" ? s.startTime : null))
-        )
-        .filter(Boolean)
-        .sort((a, b) => a - b)[0];
-      startTime = earliestJobStart || Date.now();
-    }
+  let startTime = dayStartTime;
+  if (!startTime) {
+    const earliestJobStart = jobs
+      .flatMap((job) =>
+        job.sessions.map((s) => (typeof s === "object" ? s.startTime : null))
+      )
+      .filter(Boolean)
+      .sort((a, b) => a - b)[0];
+    startTime = earliestJobStart || Date.now();
+  }
 
-    const finalIdleDuration =
-      isIdle && localStorage.getItem("ghosttrackIdleStartTime")
-        ? Date.now() - Number(localStorage.getItem("ghosttrackIdleStartTime"))
-        : 0;
+  // Calculate total idle time at the moment of saving
+  const finalIdleDuration =
+    isIdle && localStorage.getItem("ghosttrackIdleStartTime")
+      ? Date.now() - Number(localStorage.getItem("ghosttrackIdleStartTime"))
+      : 0;
 
-    const totalIdleTime = idleTotal + finalIdleDuration;
+  const totalIdleTime = idleTotal + finalIdleDuration;
 
-    const jobSummaries = jobs.map((job) => {
-      const sessions = job.sessions.map((s) =>
-        typeof s === "number"
-          ? {
-              id: `session-${Date.now()}`,
-              type: "work",
-              reasonCode: "",
-              startTime: null,
-              endTime: null,
-              duration: s,
-            }
-          : s
-      );
+  // Store total idle time in localStorage
+  localStorage.setItem("ghosttrackIdleTotal", totalIdleTime.toString());
+  
+  // Store idleStartTime if user is still idle
+  if (isIdle) {
+    localStorage.setItem("ghosttrackIdleStartTime", Date.now());
+  } else {
+    localStorage.removeItem("ghosttrackIdleStartTime");
+  }
 
-      const totalTime = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
-
-      return {
-        name: job.name,
-        sessions,
-        notes: job.tasksByDate?.[today] || [],
-        totalTime,
-      };
-    });
-
-    const summary = {
-      logId: today,
-      jobs: jobSummaries,
-      idleTotal: totalIdleTime,
-      idleStartTime: null,
-      isIdle: false,
-      dayStartTime: startTime,
-    };
-
-    let previousLogsRaw = localStorage.getItem("ghosttrackLogs");
-    let previousLogs = [];
-
-    try {
-      const parsed = JSON.parse(previousLogsRaw || "[]");
-      previousLogs = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      previousLogs = [];
-    }
-
-    const existingIndex = previousLogs.findIndex(
-      (log) => (log.logId || log.date) === today
+  const jobSummaries = jobs.map((job) => {
+    const sessions = job.sessions.map((s) =>
+      typeof s === "number"
+        ? {
+            id: `session-${Date.now()}`,
+            type: "work",
+            reasonCode: "",
+            startTime: null,
+            endTime: null,
+            duration: s,
+          }
+        : s
     );
 
-    summary.dailySummary = generateDailySummary(summary);
+    const totalTime = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
 
-    if (existingIndex !== -1) previousLogs[existingIndex] = summary;
-    else previousLogs.push(summary);
+    return {
+      name: job.name,
+      sessions,
+      totalTime,
+      tasksByDate: job.tasksByDate || {}, // Save full tasks
+    };
+  });
 
-    const validatedLogs = previousLogs.map(validateLog).filter(Boolean);
-    localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
-
-    localStorage.removeItem("ghosttrackLiveJobs");
-    localStorage.removeItem("ghosttrackDayStartTime");
-    localStorage.removeItem("ghosttrackIdleStartTime");
-    localStorage.removeItem("ghosttrackIdleTotal");
-    localStorage.removeItem("ghosttrackIsIdle");
-
-    setJobs([]);
-    setDayStartTime(null);
-    setShowSaveSuccess(true);
-    setViewStatus("idle");
+  const summary = {
+    logId: today,
+    jobs: jobSummaries,
+    idleTotal: totalIdleTime,
+    idleStartTime: null, // Reset idle start time when saving
+    isIdle: false, // Set isIdle to false when saving
+    dayStartTime: startTime,
   };
+
+  let previousLogsRaw = localStorage.getItem("ghosttrackLogs");
+  let previousLogs = [];
+
+  try {
+    const parsed = JSON.parse(previousLogsRaw || "[]");
+    previousLogs = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    previousLogs = [];
+  }
+
+  const existingIndex = previousLogs.findIndex(
+    (log) => (log.logId || log.date) === today
+  );
+
+  summary.dailySummary = generateDailySummary(summary);
+
+  if (existingIndex !== -1) previousLogs[existingIndex] = summary;
+  else previousLogs.push(summary);
+
+  const validatedLogs = previousLogs.map(validateLog).filter(Boolean);
+  localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
+
+  // Reset idle state after saving the log
+  localStorage.removeItem("ghosttrackIsIdle");
+
+  // Reset idle state in context
+  setIdleTotal(0); // Reset idle total after saving
+  setIsIdle(false); // Set idle state to false (stop idle timer)
+  setIdleStartTime(null); // Reset idle start time to null
+
+  setJobs([]);
+  setDayStartTime(null);
+  setShowSaveSuccess(true);
+  setViewStatus("resume");
+};
 
   const handleCancelToday = () => {
     if (!window.confirm("Cancel and delete today's current log?")) return;
@@ -340,8 +383,8 @@ function TrackingPage() {
               <h2 className="text-2xl font-extrabold text-gray-800 px-5 pt-5 text-center w-full">
                 Total Idle Today:{" "}
                 <span className={isIdle ? "text-green-700" : "text-gray-800"}>
-  {formatTime(idleDisplayTotal)}
-</span>
+                  {formatTime(idleDisplayTotal)}
+                </span>
               </h2>
               {isIdle && (
                 <div className="flex items-center justify-center px-5 py-2">
@@ -405,35 +448,34 @@ function TrackingPage() {
 
           <div className="grid gap-6 mt-4">
             {jobs.map((job, idx) => {
-  const elapsed = getElapsedTime(idx);
-  const pastSessions = job.sessions.reduce(
-    (sum, s) => sum + (s.duration || 0),
-    0
-  );
-  const totalTime = elapsed + pastSessions;
+              const elapsed = getElapsedTime(idx);
+              const pastSessions = job.sessions.reduce(
+                (sum, s) => sum + (s.duration || 0),
+                0
+              );
+              const totalTime = elapsed + pastSessions;
 
-  // ✅ Current session time (0 if not clocked in)
-  const currentSessionTime = job.isClockedIn ? elapsed : 0;
+              // ✅ Current session time (0 if not clocked in)
+              const currentSessionTime = job.isClockedIn ? elapsed : 0;
 
-  return (
-    <JobCard
-  key={idx}
-  job={job}
-  tick={tick} // ✅ Add this line
-  elapsedTotalFormatted={formatTime(totalTime)}
-  elapsedCurrentSessionFormatted={formatTime(currentSessionTime)}
-  onAddTask={(task) => addTaskToJob(idx, task)}
-  onToggleClock={() => job.isClockedIn ? clockOut(idx) : clockIn(idx)}
-  onDeleteSession={(sIdx) => {
-    const updated = [...jobs];
-    updated[idx].sessions.splice(sIdx, 1);
-    setJobs(updated);
-  }}
-  onDeleteJob={() => deleteJob(idx)}
-/>
-  );
-})}
-
+              return (
+                <JobCard
+                  key={idx}
+                  job={job}
+                  tick={tick} // ✅ Add this line
+                  elapsedTotalFormatted={formatTime(totalTime)}
+                  elapsedCurrentSessionFormatted={formatTime(currentSessionTime)}
+                  onAddTask={(task) => handleAddTask(idx, task)} // ✅ Use handleAddTask here
+                  onToggleClock={() => job.isClockedIn ? clockOut(idx) : clockIn(idx)}
+                  onDeleteSession={(sIdx) => {
+                    const updated = [...jobs];
+                    updated[idx].sessions.splice(sIdx, 1);
+                    setJobs(updated);
+                  }}
+                  onDeleteJob={() => deleteJob(idx)}
+                />
+              );
+            })}
           </div>
         </div>
       )}

@@ -112,6 +112,9 @@ const WorkHistoryPage = () => {
     setEditMode({});
   };
 
+  // Define currentDate inside WorkHistoryPage
+  const currentDate = new Date().toISOString().split("T")[0];  // Get current date in YYYY-MM-DD format
+
   return (
     <div className="p-8 font-sans">
       <div className="flex justify-between items-center mb-6">
@@ -212,7 +215,7 @@ const WorkHistoryPage = () => {
                         0
                       )
                     );
-                    const safeNotes = job.notes || [];
+                    const safeTasks = job.tasksByDate[currentDate] || []; // Get tasks from tasksByDate
 
                     return (
                       <div key={jobKey} className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
@@ -254,18 +257,18 @@ const WorkHistoryPage = () => {
                           {editMode[dateIdx] ? (
                             <textarea
                               className="border w-full rounded px-2 py-1"
-                              rows={safeNotes.length || 3}
-                              defaultValue={safeNotes.join("\n")}
+                              rows={safeTasks.length || 3}
+                              defaultValue={safeTasks.join("\n")}
                               onBlur={(e) =>
-                                handleEditChange(dateIdx, jobIdx, "note", e.target.value)
+                                handleEditChange(dateIdx, jobIdx, "task", e.target.value)  // Update 'task' instead of 'note'
                               }
                             />
                           ) : (
                             <ul className="list-disc pl-5">
-                              {safeNotes.length === 0 ? (
-                                <li>No notes</li>
+                              {safeTasks.length === 0 ? (
+                                <li>No tasks</li>
                               ) : (
-                                safeNotes.map((note, idx) => <li key={idx}>{note}</li>)
+                                safeTasks.map((task, idx) => <li key={idx}>{task}</li>)
                               )}
                             </ul>
                           )}
