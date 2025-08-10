@@ -1,10 +1,19 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import WorkHistoryPage from "./components/WorkHistoryPage";
 import TrackingPage from "./components/TrackingPage";
 import { SessionProvider } from "./context/SessionContext";
 
+// ⬇️ Add these
+import { initOutbox } from "./api/outbox";
+import { postLog } from "./api/client";
+
 function App() {
+  // Initialize outbox once on mount
+  useEffect(() => {
+    initOutbox(postLog);
+  }, []);
+
   return (
     <SessionProvider>
       <Router>

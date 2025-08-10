@@ -17,6 +17,27 @@ const parseTimeInput = (str) => {
   return ((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) * 1000;
 };
 
+// ✅ Robust date formatter using YYYY-MM-DD fallback
+function formatDateKey(dateKey) {
+  if (!dateKey || typeof dateKey !== "string") return "—";
+  const parts = dateKey.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    const dObj = new Date(`${y}-${m}-${d}T00:00:00Z`);
+    if (!isNaN(dObj.getTime())) {
+      return dObj.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+    // fallback M-D-YY if somehow invalid
+    return `${m}-${d}-${String(y).slice(2)}`;
+  }
+  return dateKey; // as-is if not a date (avoid "Invalid Date")
+}
+
 const WorkHistoryPage = () => {
   const [expandedDateIndex, setExpandedDateIndex] = useState(null);
   const [expandedJobs, setExpandedJobs] = useState({});
@@ -40,19 +61,17 @@ const WorkHistoryPage = () => {
     setExpandedJobs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // ✅ Use log.date (preferred) or log.logId (legacy) to build label
   const getFormattedDate = (log) => {
-    const rawDate = log.date || log.logId || "";
-    const [year = "0000", month = "00", day = "00"] = rawDate.split("-");
-    const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
-    const weekday = dateObj.toLocaleDateString("en-US", { weekday: "long" });
-    return `${weekday}, ${month}-${day}-${year.slice(2)}`;
+    const rawDate = (log?.date || log?.logId || "").split("T")[0];
+    return formatDateKey(rawDate);
   };
 
   const getTotalDayTime = (jobs) => {
-    const total = jobs.reduce((sum, job) => {
+    const total = (jobs || []).reduce((sum, job) => {
       return (
         sum +
-        job.sessions.reduce(
+        (job.sessions || []).reduce(
           (sessionSum, session) =>
             sessionSum +
             (typeof session === "number" ? session : session?.duration || 0),
@@ -87,18 +106,31 @@ const WorkHistoryPage = () => {
     const updatedLogs = [...logs];
     const actualIndex = logs.length - 1 - logIdx;
 
-    if (field === "name") {
-      updatedLogs[actualIndex].jobs[jobIdx].name = value;
-    } else if (field === "note") {
-      updatedLogs[actualIndex].jobs[jobIdx].notes = value.split("\n");
-    } else if (field === "jobTime") {
-      const ms = parseTimeInput(value);
-      updatedLogs[actualIndex].jobs[jobIdx].sessions = [
-        { id: `session-${Date.now()}`, type: "manual-edit", duration: ms },
-      ];
-    } else if (field === "idle") {
-      const ms = parseTimeInput(value);
-      updatedLogs[actualIndex].idleTotal = ms;
+    if (jobIdx === null || jobIdx === undefined) {
+      // day-level fields
+      if (field === "idle") {
+        const ms = parseTimeInput(value);
+        updatedLogs[actualIndex].idleTotal = ms;
+      }
+    } else {
+      // job-level fields
+      if (field === "name") {
+        updatedLogs[actualIndex].jobs[jobIdx].name = value;
+      } else if (field === "note") {
+        updatedLogs[actualIndex].jobs[jobIdx].notes = value.split("\n");
+      } else if (field === "jobTime") {
+        const ms = parseTimeInput(value);
+        updatedLogs[actualIndex].jobs[jobIdx].sessions = [
+          { id: `session-${Date.now()}`, type: "manual-edit", duration: ms },
+        ];
+      } else if (field === "task") {
+        // ✅ write tasks text area back into tasksByDate[dateKey]
+        const lines = (value || "").split("\n").map((s) => s.trim()).filter(Boolean);
+        const dateKey = (updatedLogs[actualIndex].date || updatedLogs[actualIndex].logId || "").split("T")[0];
+        const job = updatedLogs[actualIndex].jobs[jobIdx];
+        if (!job.tasksByDate) job.tasksByDate = {};
+        job.tasksByDate[dateKey] = lines;
+      }
     }
 
     setLogs(updatedLogs);
@@ -111,9 +143,6 @@ const WorkHistoryPage = () => {
     setLogs(clonedLogs);
     setEditMode({});
   };
-
-  // Define currentDate inside WorkHistoryPage
-  const currentDate = new Date().toISOString().split("T")[0];  // Get current date in YYYY-MM-DD format
 
   return (
     <div className="p-8 font-sans">
@@ -138,7 +167,10 @@ const WorkHistoryPage = () => {
         .reverse()
         .map((log, dateIdx) => {
           const formattedDate = getFormattedDate(log);
+
           const totalTime = getTotalDayTime(log.jobs || []);
+
+          // ✅ idle: prefer idleTotal; fallback to legacy shapes
           const idleMs =
             typeof log.totalIdleTime === "number"
               ? log.totalIdleTime
@@ -150,6 +182,7 @@ const WorkHistoryPage = () => {
 
           const idleTime = formatTime(idleMs);
 
+          // ✅ start time from saved value or first session timestamp
           const startTime =
             log.dayStartTime || log.jobs?.[0]?.sessions?.[0]?.startTime || null;
           const startTimeStr =
@@ -160,6 +193,9 @@ const WorkHistoryPage = () => {
                 })
               : "N/A";
           const startTimeEstimated = !log.dayStartTime;
+
+          // ✅ use the log’s dateKey to read tasks for that day
+          const dateKey = (log?.date || log?.logId || "").split("T")[0];
 
           return (
             <div key={dateIdx} className="mb-6">
@@ -183,7 +219,10 @@ const WorkHistoryPage = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleEditToggle(dateIdx);
+                        if (editMode[dateIdx]) {
+                          handleSaveEdits();
+                        }
+                        setEditMode((prev) => ({ ...prev, [dateIdx]: !prev[dateIdx] }));
                       }}
                       className="text-gray-600 hover:text-gray-800"
                       title="Edit"
@@ -209,13 +248,16 @@ const WorkHistoryPage = () => {
                   {(log.jobs || []).map((job, jobIdx) => {
                     const jobKey = `${dateIdx}-${jobIdx}`;
                     const jobTime = formatTime(
-                      job.sessions.reduce(
+                      (job.sessions || []).reduce(
                         (s, session) =>
                           s + (typeof session === "number" ? session : session?.duration || 0),
                         0
                       )
                     );
-                    const safeTasks = job.tasksByDate[currentDate] || []; // Get tasks from tasksByDate
+
+                    // ✅ tasks for the saved dateKey (not today's date)
+                    const safeTasks =
+                      (job.tasksByDate && job.tasksByDate[dateKey]) || [];
 
                     return (
                       <div key={jobKey} className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
@@ -260,7 +302,7 @@ const WorkHistoryPage = () => {
                               rows={safeTasks.length || 3}
                               defaultValue={safeTasks.join("\n")}
                               onBlur={(e) =>
-                                handleEditChange(dateIdx, jobIdx, "task", e.target.value)  // Update 'task' instead of 'note'
+                                handleEditChange(dateIdx, jobIdx, "task", e.target.value)
                               }
                             />
                           ) : (
@@ -284,13 +326,13 @@ const WorkHistoryPage = () => {
 
                         {expandedJobs[jobKey] && (
                           <ul className="text-xs list-disc pl-6 mt-1 text-gray-700">
-                            {job.sessions.map((session, idx) => (
+                            {(job.sessions || []).map((session, idx) => (
                               <li key={idx}>
                                 Session {idx + 1}:{" "}
                                 {formatTime(
                                   typeof session === "number"
                                     ? session
-                                    : session.duration || 0
+                                    : session?.duration || 0
                                 )}
                               </li>
                             ))}

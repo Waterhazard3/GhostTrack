@@ -5,6 +5,18 @@ import { validateLog } from "../utils/validateSchema";
 import { generateDailySummary } from "../utils/generateDailySummary";
 import { useSessionContext } from "../context/SessionContext";
 
+// ✅ Added: server write-only helper + uuid for safe ids when needed
+import { saveToday as saveTodayToServer } from "../api/logActions";
+import { v4 as uuid } from "uuid";
+
+// Stable UUID per date so retries are idempotent and schema-valid
+function getOrCreateServerLogId(dateKey) {
+  const key = `ghosttrackServerLogId:${dateKey}`;
+  let id = localStorage.getItem(key);
+  if (!id) { id = uuid(); localStorage.setItem(key, id); }
+  return id;
+}
+
 function TrackingPage() {
   const today = new Date().toISOString().split("T")[0];
   const [currentDate, setCurrentDate] = useState(today);
@@ -148,7 +160,7 @@ function TrackingPage() {
     setNewJobName("");
   };
 
-  const handleSaveToday = () => {
+  const handleSaveToday = async () => {
   const anyClockedIn = jobs.some((job) => job.isClockedIn);
   if (anyClockedIn) {
     alert("⚠️ Please clock out of all jobs before saving.");
@@ -209,13 +221,14 @@ function TrackingPage() {
   });
 
   const summary = {
-    logId: today,
-    jobs: jobSummaries,
-    idleTotal: totalIdleTime,
-    idleStartTime: null, // Reset idle start time when saving
-    isIdle: false, // Set isIdle to false when saving
-    dayStartTime: startTime,
-  };
+  logId: today,
+  date: today, // ← add this line
+  jobs: jobSummaries,
+  idleTotal: totalIdleTime,
+  idleStartTime: null,
+  isIdle: false,
+  dayStartTime: startTime,
+};
 
   let previousLogsRaw = localStorage.getItem("ghosttrackLogs");
   let previousLogs = [];
@@ -238,6 +251,51 @@ function TrackingPage() {
 
   const validatedLogs = previousLogs.map(validateLog).filter(Boolean);
   localStorage.setItem("ghosttrackLogs", JSON.stringify(validatedLogs));
+
+  // ✅ NEW: also save to the server (write-only; does not affect resume)
+  // Build a server payload from current in-memory data WITHOUT changing local shapes
+  try {
+    const serverJobs = jobs.map((job) => {
+      const jobId = uuid();
+      // cursor used only when we need to synthesize start/end for number-only sessions
+      let cursor = startTime;
+
+      const sessions = (job.sessions || []).map((s) => {
+        if (typeof s === "object" && (s.startTime || s.endTime)) {
+          const startISO = s.startTime ? new Date(s.startTime).toISOString() : new Date(Date.now() - (s.duration || 0)).toISOString();
+          const endISO = s.endTime ? new Date(s.endTime).toISOString() : new Date().toISOString();
+          return {
+            sessionId: s.sessionId || uuid(),
+            startTime: startISO,
+            endTime: endISO,
+          };
+        }
+        const durMs = typeof s === "number" ? s : (s?.duration || 0);
+        const startISO = new Date(cursor).toISOString();
+        const endISO = new Date(cursor + durMs).toISOString();
+        cursor += durMs;
+        return {
+          sessionId: uuid(),
+          startTime: startISO,
+          endTime: endISO,
+        };
+      });
+
+      return { jobId, jobName: job.name, sessions };
+    });
+
+    const serverPayload = {
+      logId: getOrCreateServerLogId(today),                // idempotent per day
+      date: today,                 // YYYY-MM-DD
+      jobs: serverJobs,
+      idleTimeSeconds: Math.max(0, Math.floor(totalIdleTime / 1000)), // seconds
+      meta: { notes: "", tags: [] },
+    };
+
+    await saveTodayToServer(serverPayload); // will queue if offline
+  } catch {
+    // no-op; server write is best-effort and already queues on error
+  }
 
   // Reset idle state after saving the log
   localStorage.removeItem("ghosttrackIsIdle");
@@ -380,7 +438,7 @@ function TrackingPage() {
                 isIdle ? "border-green-500 bg-green-50 min-h-[160px]" : "border-gray-300 bg-white min-h-[110px]"
               }`}
             >
-              <h2 className="text-2xl font-extrabold text-gray-800 px-5 pt-5 text-center w-full">
+              <h2 className="text-2xl font-extrabold text-gray-800 px-5 pt-5 text-center w_full">
                 Total Idle Today:{" "}
                 <span className={isIdle ? "text-green-700" : "text-gray-800"}>
                   {formatTime(idleDisplayTotal)}
@@ -396,14 +454,14 @@ function TrackingPage() {
               {!isIdle ? (
                 <button
                   onClick={takeBreak}
-                  className="bg-red-600 hover:bg-red-700 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
+                  className="bg-red-600 hover:bg-red-700 text_white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
                   style={{ height: "48px" }}
                 >
                   🛑 Start Break / Idle
                 </button>
               ) : (
                 <div
-                  className="bg-green-600 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify-center gap-2"
+                  className="bg-green-600 text-white text-center py-3 font-extrabold text-xl shadow-md rounded-b-xl leading-none flex items-center justify_center gap-2"
                   style={{ height: "48px" }}
                 >
                   🕒 Break / Idle - Active
