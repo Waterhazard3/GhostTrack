@@ -1,9 +1,12 @@
 import React, { useState } from "react";
+import { v4 as uuid } from "uuid";
 
 function FixClockInMistake({
   jobs,
   setJobs,
   idleTotal,
+  isIdle,
+  idleStartTime,
   setIdleTotal,
   setIsIdle,
   setIdleStartTime,
@@ -17,76 +20,148 @@ function FixClockInMistake({
   const IDLE_KEY = "__IDLE__";
 
   const handleConfirmFix = () => {
-    if (!fromJob || !toJob || !correctionTime)
-      return alert("Fill out all fields");
-
-    const updatedJobs = [...jobs];
-    const correctionDateTime = new Date();
-    const [h, m] = correctionTime.split(":");
-    correctionDateTime.setHours(Number(h), Number(m), 0, 0);
-    const correctionTimestamp = correctionDateTime.getTime();
-
-    if (fromJob === IDLE_KEY) {
-      const now = Date.now();
-      const mistakenIdle = now - correctionTimestamp;
-      if (mistakenIdle > 0) {
-        const newIdleTotal = Math.max(0, idleTotal - mistakenIdle);
-        setIdleTotal(newIdleTotal);
-        localStorage.setItem("ghosttrackIdleTotal", newIdleTotal.toString());
-      }
-    } else {
-      const fromIndex = jobs.findIndex((j) => j.name === fromJob);
-      if (fromIndex === -1) return alert("Source job not found");
-
-      const fromJobObj = updatedJobs[fromIndex];
-      if (fromJobObj.isClockedIn && fromJobObj.startTime < correctionTimestamp) {
-        const correctedDuration = correctionTimestamp - fromJobObj.startTime;
-        fromJobObj.sessions.push(correctedDuration);
-        fromJobObj.startTime = null;
-        fromJobObj.isClockedIn = false;
-        fromJobObj.lastClockOut = correctionTimestamp;
-      }
+    if (!fromJob || !toJob || !correctionTime) {
+      alert("Fill out all fields");
+      return;
     }
-
-    if (toJob === IDLE_KEY) {
-      updatedJobs.forEach((job) => {
-        if (job.isClockedIn && job.startTime < correctionTimestamp) {
-          const duration = correctionTimestamp - job.startTime;
-          job.sessions.push(duration);
-          job.startTime = null;
-          job.isClockedIn = false;
-          job.lastClockOut = correctionTimestamp;
-        }
-      });
-
-      setIsIdle(true);
-      setIdleStartTime(correctionTimestamp);
-      localStorage.setItem("ghosttrackIsIdle", "true");
-      localStorage.setItem("ghosttrackIdleStartTime", correctionTimestamp.toString());
-
-      setJobs(updatedJobs);
-      resetUI();
+    if (fromJob === toJob) {
+      alert("From and To are the same.");
       return;
     }
 
-    const toIndex = jobs.findIndex((j) => j.name === toJob);
-    if (toIndex === -1) return alert("Target job not found");
+    const updatedJobs = JSON.parse(JSON.stringify(jobs)); // deep copy
+    const correctionDateTime = new Date();
+    const [h, m] = String(correctionTime).split(":");
+    correctionDateTime.setHours(Number(h), Number(m), 0, 0);
+    let correctionTimestamp = correctionDateTime.getTime();
+    const now = Date.now();
+    if (correctionTimestamp > now) correctionTimestamp = now;
 
-    updatedJobs.forEach((job) => {
-      if (job.isClockedIn) {
-        const now = Date.now();
-        const duration = now - job.startTime;
-        if (duration > 0) job.sessions.push(duration);
-        job.startTime = null;
-        job.isClockedIn = false;
-        job.lastClockOut = now;
+    // 1) Close/trim the "from" job at correction time (if applicable)
+    if (fromJob !== IDLE_KEY) {
+      const fromIndex = jobs.findIndex((j) => j.name === fromJob);
+      if (fromIndex === -1) return alert("Source job not found");
+      const fromJobObj = updatedJobs[fromIndex];
+
+      if (fromJobObj.isClockedIn && fromJobObj.startTime < correctionTimestamp) {
+        // Close the running segment at T
+        const start = fromJobObj.startTime;
+        const end = correctionTimestamp;
+        if (end > start) {
+          fromJobObj.sessions.push({
+            id: `session-${uuid()}`,
+            type: "work",
+            reasonCode: "",
+            startTime: start,
+            endTime: end,
+            duration: end - start,
+          });
+        }
+        fromJobObj.isClockedIn = false;
+        fromJobObj.startTime = null;
+        fromJobObj.lastClockOut = correctionTimestamp;
+      } else {
+        // Not running now — trim only the ended session that spans T (start < T <= end)
+        const sess = fromJobObj.sessions || [];
+        for (let i = sess.length - 1; i >= 0; i--) {
+          const s = sess[i];
+          const hasEnds =
+            typeof s?.startTime === "number" && typeof s?.endTime === "number";
+          if (!hasEnds) continue;
+          if (s.startTime < correctionTimestamp && s.endTime >= correctionTimestamp) {
+            s.endTime = correctionTimestamp;
+            s.duration = Math.max(0, s.endTime - s.startTime);
+            fromJobObj.lastClockOut = correctionTimestamp;
+            break; // only the most recent spanning session
+          }
+        }
       }
-    });
+    }
 
-    const toJobObj = updatedJobs[toIndex];
-    toJobObj.isClockedIn = true;
-    toJobObj.startTime = correctionTimestamp;
+    // 2) If switching TO Idle: close any running job at T; make Idle live from T
+    if (toJob === IDLE_KEY) {
+      for (const job of updatedJobs) {
+        if (job.isClockedIn && job.startTime < correctionTimestamp) {
+          const start = job.startTime;
+          const end = correctionTimestamp;
+          if (end > start) {
+            job.sessions.push({
+              id: `session-${uuid()}`,
+              type: "work",
+              reasonCode: "",
+              startTime: start,
+              endTime: end,
+              duration: end - start,
+            });
+          }
+          job.isClockedIn = false;
+          job.startTime = null;
+          job.lastClockOut = correctionTimestamp;
+        }
+      }
+      setIsIdle(true);
+      // keep earlier idle start if already idle; otherwise start idle at T
+      setIdleStartTime((prev) =>
+        typeof prev === "number" && prev > 0
+          ? Math.min(prev, correctionTimestamp)
+          : correctionTimestamp
+      );
+    }
 
+    // 3) If switching TO another job: stop any running job at T; start target at T.
+    if (toJob !== IDLE_KEY) {
+      const toIndex = jobs.findIndex((j) => j.name === toJob);
+      if (toIndex === -1) return alert("Target job not found");
+
+      // Treat Idle like a job: subtract exactly the T→now slice from effective idle total
+      {
+        const sliceMs = Math.max(0, now - correctionTimestamp);
+        const effectiveIdleNow =
+          (idleTotal || 0) +
+          (isIdle && typeof idleStartTime === "number"
+            ? Math.max(0, now - idleStartTime)
+            : 0);
+        const newIdleTotal = Math.max(0, effectiveIdleNow - sliceMs);
+        setIdleTotal(newIdleTotal);
+        setIsIdle(false);
+        setIdleStartTime(null);
+      }
+
+      // Close any running job segments that started before T
+      for (const job of updatedJobs) {
+        if (job.isClockedIn && job.startTime < correctionTimestamp) {
+          const start = job.startTime;
+          const end = correctionTimestamp;
+          if (end > start) {
+            job.sessions.push({
+              id: `session-${uuid()}`,
+              type: "work",
+              reasonCode: "",
+              startTime: start,
+              endTime: end,
+              duration: end - start,
+            });
+          }
+          job.isClockedIn = false;
+          job.startTime = null;
+          job.lastClockOut = correctionTimestamp;
+        }
+      }
+
+      // Start/extend the target job from T
+      const toJobObj = updatedJobs[toIndex];
+      const existingStart =
+        toJobObj.isClockedIn && typeof toJobObj.startTime === "number"
+          ? toJobObj.startTime
+          : null;
+      toJobObj.isClockedIn = true;
+      toJobObj.startTime =
+        existingStart != null
+          ? Math.min(existingStart, correctionTimestamp)
+          : correctionTimestamp;
+    }
+
+    // 4) Commit local state (no server call here)
     setJobs(updatedJobs);
     resetUI();
   };

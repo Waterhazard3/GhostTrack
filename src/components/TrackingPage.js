@@ -496,9 +496,11 @@ function TrackingPage() {
                 jobs={jobs}
                 setJobs={setJobs} // ✅ must be from context
                 idleTotal={idleTotal}
-                setIdleTotal={() => {}}
-                setIsIdle={() => {}}
-                setIdleStartTime={() => {}}
+                isIdle={isIdle}
+                idleStartTime={idleStartTime}
+                setIdleTotal={setIdleTotal}
+                setIsIdle={setIsIdle}
+                setIdleStartTime={setIdleStartTime}
                 buttonClassName="border-2 border-gray-500 text-gray-700 px-5 py-3 rounded-lg text-base sm:text-lg font-semibold hover:bg-gray-100 shadow-sm w-full"
               />
             </div>
